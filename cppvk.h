@@ -57,6 +57,7 @@ namespace cppvk {
 	using PhysicalDevicePtr = shared_pointer< VkPhysicalDevice>;
 	using DevicePtr = shared_pointer<delete_wrap_ptr<VkDevice>>;
 	using SwapchainPtr = shared_pointer<delete_wrap_ptr<VkSwapchainKHR,DevicePtr>>;
+	using RenderpassPtr = shared_pointer<delete_wrap_ptr<VkRenderPass,DevicePtr>>;
 
 	/**
 	 * @brief Object to own custom deleter
@@ -740,24 +741,24 @@ namespace cppvk {
 			 * @brief 
 			 * 
 			 */
-			class DeviceQueueBuilder {
+			class DeviceQueueSetter {
 				VkDeviceQueueCreateInfo &info;
 			public:
-				DeviceQueueBuilder(VkDeviceQueueCreateInfo& i):info(i) {
+				DeviceQueueSetter(VkDeviceQueueCreateInfo& i):info(i) {
 					info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
 					info.pNext = NULL;
 					info.flags = 0;
 					info.queueFamilyIndex = 0;
 					info.queueCount = 0;
 				}
-				~DeviceQueueBuilder() {}
+				~DeviceQueueSetter() {}
 				/**
 				 * @brief queueFamilyIndex is an unsigned integer indicating the index of the queue family to create on this device. This index corresponds to the index of an element of the pQueueFamilyProperties array that was returned by vkGetPhysicalDeviceQueueFamilyProperties
 				 *
 				 * @param index
-				 * @return DeviceQueueBuilder
+				 * @return DeviceQueueSetter
 				 */
-				DeviceQueueBuilder familyIndices(const uint32_t index) {
+				DeviceQueueSetter familyIndices(const uint32_t index) {
 					info.queueFamilyIndex = index;
 					return *this;
 				}
@@ -765,9 +766,9 @@ namespace cppvk {
 				 * @brief pQueuePriorities is an array of queueCount normalized floating point values, specifying priorities of work that will be submitted to each created queue. See Queue Priority for more information.
 				 * lvalue only
 				 * @param prior
-				 * @return DeviceQueueBuilder
+				 * @return DeviceQueueSetter
 				 */
-				DeviceQueueBuilder priorities(Priorities& prior) {
+				DeviceQueueSetter priorities(Priorities& prior) {
 					info.queueCount = static_cast<uint32_t>(prior.size());
 					if (!prior.empty())info.pQueuePriorities = prior.data();
 					return *this;
@@ -815,11 +816,11 @@ namespace cppvk {
 			 * @param createFunc 
 			 * @return DeviceBuilder 
 			 */
-			DeviceBuilder addQueueInfo(const std::function<void(DeviceQueueBuilder&)>& createFunc) {
+			DeviceBuilder addQueueInfo(const std::function<void(DeviceQueueSetter&)>& createFunc) {
 				auto item = VkDeviceQueueCreateInfo{};
-				auto op = DeviceQueueBuilder(item);
+				auto op = DeviceQueueSetter(item);
 				createFunc(op);
-				queueInfos.emplace_back(item);
+				queueInfos.push_back(item);
 				return *this;
 			}
 
@@ -844,7 +845,7 @@ namespace cppvk {
 					vkDestroyDevice(ptr,VK_NULL_HANDLE);
 				} );
 			}
-	};
+	};//DeviceBuilder
 
 	/**
 	 * @brief 
@@ -1069,7 +1070,118 @@ namespace cppvk {
 				},
 				logicalDevice);
 		}
+	};//SwapchainBuilder
 
-	};
+	/**
+	 * @brief 
+	 * 
+	 */
+	class RenderpassBuilder{
+		VkRenderPassCreateInfo info = {};
+		DevicePtr logicalDevice;
+		std::vector<VkAttachmentDescription> attachments;
+		std::vector<VkSubpassDescription> description;
+		std::vector<VkSubpassDependency> dependency;
+	private:
+
+		
+		template<class T, template<class cT, class A = std::allocator<cT>>class Container>
+		void add(Container<T>& container, const std::function<void(T&)>& createFunc) {
+			auto item = T{};
+			createFunc(item);
+			container.push_back(item);
+		}
+
+	public:
+		RenderpassBuilder(DevicePtr pointer):logicalDevice(pointer){
+			info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+			info.pNext = VK_NULL_HANDLE;
+			info.flags = 0;
+		}
+
+		/**
+		 * @brief 
+		 * 
+		 * @param pointer 
+		 * @return RenderpassBuilder 
+		 */
+		static RenderpassBuilder get(DevicePtr pointer){
+			return RenderpassBuilder(pointer);
+		}
+
+		/**
+		 * @brief 
+		 *  flags:VkAttachmentDescriptionの追加プロパティを指定する VkAttachmentDescriptionFlagBits のビットマスクです。
+		 *  format:VkAttachmentDescriptionに使用される画像ビューのフォーマットを指定する VkFormat 値です。
+		 *  samples:VkSampleCountFlagBits で定義されている画像のサンプル数です。
+		 *  loadOp: VkAttachmentLoadOp 値で、最初に使用されるサブパスの開始時に、アタッチメントのカラー コンポーネントとデプス コンポーネントのコンテンツがどのように処理されるかを指定します。
+		 *  storeOp: VkAttachmentStoreOp 値で、最後に使用したサブパスの終了時に、アタッチメントのカラー コンポーネントとデプス コンポーネントの内容がどのように処理されるかを指定します。
+		 *  stencilLoadOp: VkAttachmentLoadOp 値で、アタッチメントのステンシル コンポーネントのコンテンツが、最初に使用されたサブパスの先頭でどのように処理されるかを指定します。
+		 *  stencilStoreOp: VkAttachmentStoreOp 値で、アタッチメントのステンシル コンポーネントのコンテンツが、使用される最後のサブパスの最後にどのように処理されるかを指定します。
+		 *  initialLayout: レンダーパスのインスタンスが開始されたときに、アタッチメントイメージのサブリソースが置かれるレイアウトです。
+		 *  finalLayout: レンダーパスインスタンスが終了したときにアタッチメントイメージサブリソースが遷移するレイアウトです。
+		 * @param createFunc 
+		 * @return RenderpassBuilder 
+		 */
+		RenderpassBuilder addAttachments(const std::function<void(VkAttachmentDescription&)> createFunc){
+			add<VkAttachmentDescription>(attachments,createFunc);
+			return *this;
+		}
+
+		/**
+		 * @brief 
+		 * 
+		 * @param 
+		 * @return RenderpassBuilder 
+		 */
+		RenderpassBuilder addSubpassDescription(const std::function<void(VkSubpassDescription&)> createFunc){
+			add<VkSubpassDescription>(description,createFunc);
+			return *this;
+		}
+
+		/**
+		 * @brief 
+		 * 
+		 * @param 
+		 * @return RenderpassBuilder 
+		 */
+		RenderpassBuilder addSubpassDependency(const std::function<void(VkSubpassDependency&)> createFunc){
+			add<VkSubpassDependency>(dependency,createFunc);
+			return *this;
+		}
+
+		/**
+		 * @brief 
+		 * 
+		 * @return RenderpassPtr 
+		 */
+		RenderpassPtr build(){
+
+			info.attachmentCount = static_cast<uint32_t>(attachments.size());
+			if(!attachments.empty())
+				info.pAttachments = attachments.data();
+
+			info.subpassCount = static_cast<uint32_t>(description.size());
+			if (!description.empty())
+				info.pSubpasses = description.data();
+
+			info.dependencyCount = static_cast<uint32_t>(dependency.size());
+			if (!dependency.empty())
+				info.pDependencies = dependency.data();
+
+			VkRenderPass renderPass = VK_NULL_HANDLE;
+			auto err = vkCreateRenderPass(**logicalDevice,&info,VK_NULL_HANDLE,&renderPass);
+
+			return  std::make_shared<delete_wrap_ptr<VkRenderPass, DevicePtr>>(
+				renderPass,
+				[](VkRenderPass ptr, DevicePtr device) {
+					std::cout << STR(vkDestroyRenderPass) << std::endl;
+					vkDestroyRenderPass(**device, ptr, VK_NULL_HANDLE);
+				},
+				logicalDevice);
+
+		}
+
+	};//RenderpassBuilder
 
 }

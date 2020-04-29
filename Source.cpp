@@ -1,4 +1,3 @@
-
 #include "Window/App.h"
 #include "Window/AppWindow.h"
 #include "cppvk.h"
@@ -26,6 +25,7 @@ class VkContext {
 	cppvk::SurfacePtr surface;
 	cppvk::DevicePtr device;
 	cppvk::SwapchainPtr swapchain;
+	cppvk::RenderpassPtr renderpass;
 
 public:
 	VkContext() {}
@@ -82,13 +82,13 @@ public:
 		device = cppvk::DeviceBuilder::get(gpu)
 			.extensions({ VK_KHR_SWAPCHAIN_EXTENSION_NAME })
 			.features({})
-			.addQueueInfo([&](cppvk::DeviceBuilder::DeviceQueueBuilder& qbuilder) {
+			.addQueueInfo([&](cppvk::DeviceBuilder::DeviceQueueSetter& qbuilder) {
 			auto findices = cppvk::QueueFamilyIndices::GraphicsFamily(qFimily);
 			qbuilder
 				.priorities(qPriorities)
 				.familyIndices(findices);
 				})
-			.addQueueInfo([&](cppvk::DeviceBuilder::DeviceQueueBuilder& qbuilder) {
+			.addQueueInfo([&](cppvk::DeviceBuilder::DeviceQueueSetter& qbuilder) {
 					auto findices = cppvk::QueueFamilyIndices::PresentFamily(qFimily);
 					qbuilder
 						.priorities(qPriorities)
@@ -96,7 +96,7 @@ public:
 				})
 			.layerNames(validationLayers)
 			.build();
-				
+
 		auto swapSupport = cppvk::helper::GetSwapchainSupport(gpu, **surface);
 		auto imagebuffercount = cppvk::SwapchainSupportDetails::getSurfaceCapabilities(swapSupport).minImageCount + 1;
 		auto indices = cppvk::helper::FindQueueFamilyIndices(gpu, **surface);
@@ -104,7 +104,7 @@ public:
 		auto presentMode = cppvk::helper::chooseSwapPresentMode(swapSupport);
 		auto extent = cppvk::helper::chooseSwapExtent(swapSupport);
 		auto queueIndices = cppvk::Indexs{ cppvk::QueueFamilyIndices::GraphicsFamily(indices),cppvk::QueueFamilyIndices::PresentFamily(indices) };
-		
+
 		swapchain = cppvk::SwapchainBuilder::get(device)
 				.surface(surface)
 				.minImageCount(imagebuffercount)
@@ -122,7 +122,54 @@ public:
 				.imageSharingMode(VK_SHARING_MODE_CONCURRENT)
 				.queueFamily(queueIndices)
 				.build();
-		
+
+		VkAttachmentReference colorAttachmentRef = {};
+		colorAttachmentRef.attachment = 0;
+		colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+		renderpass = cppvk::RenderpassBuilder::get(device)
+			.addAttachments([format](VkAttachmentDescription& info){
+				/* カラーバッファのアタッチメント情報を設定*/
+				info.format = format.format;
+				info.samples = VK_SAMPLE_COUNT_1_BIT;
+				/* 色・深さデータ設定*/
+				info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+				info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+				/* ステンシルバッファのデータ設定*/
+				info.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+				info.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+				/*
+				Vulkan APIのテクスチャとフレームバッファは、
+				VkImageという特定のピクセルフォーマットを持つオブジェクトによって表します。が
+				メモリ内の｛ピクセルのレイアウト｝は画像に対して何を使用としているかによって変わることがあります。
+				*/
+				info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+				info.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+			})
+			.addSubpassDependency([](VkSubpassDependency& info){
+				/*依存関係・依存サブパスのインデックスを指定*/
+				info.srcSubpass = VK_SUBPASS_EXTERNAL;
+				info.dstSubpass = 0;
+				/*待機操作、操作発生イベントを指定する。*/
+				info.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+				info.srcAccessMask = 0;
+				/*カラーアタッチメント出力設定*/
+				info.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+				info.dstAccessMask =
+					VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
+					VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+			})
+			.addSubpassDescription([colorAttachmentRef](VkSubpassDescription& info){
+				info.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+				info.colorAttachmentCount = 1;
+				info.pColorAttachments = &colorAttachmentRef;
+				/*subpass.pInputAttachments シェーダから読み込まれるリソース*/
+				/*subpass.pResolveAttachments マルチサンプリングカラーリソースに使用されるリソース */
+				/*subpass.pDepthStencilAttachment 奥行とステンシルデータのリソース */
+				/*subpass.pPreserveAttachments データを保存するリソース*/
+			})
+			.build();
+
 	}
 };
 
