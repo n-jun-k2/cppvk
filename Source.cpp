@@ -28,6 +28,9 @@ class VkContext {
 	cppvk::RenderpassPtr renderpass;
 	cppvk::CommandPoolPtr commandpool;
 
+	cppvk::ImageList images;
+	std::vector<cppvk::ImageViewPtr> imageViews;
+
 public:
 	VkContext() {}
 	~VkContext() {}
@@ -123,6 +126,29 @@ public:
 				.imageSharingMode(VK_SHARING_MODE_CONCURRENT)
 				.queueFamily(queueIndices)
 				.build();
+
+		images = cppvk::helper::GetSwapchainImage(**device, **swapchain);
+		imageViews.resize(images.size());
+		for(uint32_t i = 0; i < images.size(); ++i)
+			imageViews[i] = cppvk::ImageViewBuilder::get(device)
+					.image(images[i])
+					.viewType(VK_IMAGE_VIEW_TYPE_2D)
+					.format(format.format)
+					.components(VkComponentMapping{
+						VK_COMPONENT_SWIZZLE_IDENTITY,
+						VK_COMPONENT_SWIZZLE_IDENTITY,
+						VK_COMPONENT_SWIZZLE_IDENTITY,
+						VK_COMPONENT_SWIZZLE_IDENTITY
+						})
+					.subresourceRange(VkImageSubresourceRange{
+						VK_IMAGE_ASPECT_COLOR_BIT,
+						0,
+						1,
+						0,
+						1
+					})
+					.make();
+		
 
 		VkAttachmentReference colorAttachmentRef = {};
 		colorAttachmentRef.attachment = 0;

@@ -38,6 +38,7 @@ namespace cppvk {
 	using LayerPropertiesList = std::vector< VkLayerProperties>;
 	using PhysicalDeviceList = std::vector< VkPhysicalDevice>;
 	using PhysicalDeviceGroupList = std::vector< VkPhysicalDeviceGroupProperties>;
+	using ImageList = std::vector< VkImage>;
 	using Names = std::vector<const char*>;
 	using Indexs = std::vector<uint32_t>;
 	using Priorities = std::vector<float>;
@@ -59,6 +60,7 @@ namespace cppvk {
 	using SwapchainPtr = shared_pointer<delete_wrap_ptr<VkSwapchainKHR,DevicePtr>>;
 	using RenderpassPtr = shared_pointer<delete_wrap_ptr<VkRenderPass,DevicePtr>>;
 	using CommandPoolPtr = shared_pointer<delete_wrap_ptr<VkCommandPool,DevicePtr>>;
+	using ImageViewPtr = shared_pointer<delete_wrap_ptr<VkImageView,DevicePtr>>;
 
 	/**
 	 * @brief Object to own custom deleter
@@ -404,6 +406,21 @@ namespace cppvk {
 		/*範囲データが異常値の場合空を返す。*/
 		static VkExtent2D chooseSwapExtent(SwapchainSupportDetails::Type& support) {
 			return chooseSwapExtent(SwapchainSupportDetails::getSurfaceCapabilities(support));
+		}
+		/*スワップチェーンの画像取得 */
+		static ImageList GetSwapchainImage(VkDevice device, VkSwapchainKHR swapchain) noexcept{
+			uint32_t count;
+			ImageList images;
+
+			if(device == VK_NULL_HANDLE || swapchain == VK_NULL_HANDLE)
+				return images;
+
+			vkGetSwapchainImagesKHR(device, swapchain, &count, nullptr);
+
+			images.resize(count);
+			vkGetSwapchainImagesKHR(device, swapchain, &count, images.data());
+
+			return images;
 		}
 
 	};
@@ -1217,5 +1234,61 @@ namespace cppvk {
 				logicalDevice);
 		}
 	};//RenderpassBuilder
+
+	class ImageViewBuilder{
+		VkImageViewCreateInfo info = {};
+		DevicePtr logicalDevice;
+	public:
+		ImageViewBuilder(DevicePtr pointer):logicalDevice(pointer){
+			info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+			info.pNext = VK_NULL_HANDLE;
+			info.flags = 0;
+		}
+
+		~ImageViewBuilder(){}
+
+		static ImageViewBuilder get(DevicePtr pointer){
+			return ImageViewBuilder(pointer);
+		}
+
+		ImageViewBuilder image(const VkImage& image){
+			info.image = image;
+			return *this;
+		}
+
+		ImageViewBuilder viewType(const VkImageViewType& type){
+			info.viewType = type;
+			return *this;
+		}
+
+		ImageViewBuilder format(const VkFormat& format){
+			info.format = format;
+			return *this;
+		}
+
+		ImageViewBuilder components(const VkComponentMapping& components){
+			info.components = components;
+			return *this;
+		}
+
+		ImageViewBuilder subresourceRange(const VkImageSubresourceRange& resource){
+			info.subresourceRange = resource;
+			return *this;
+		}
+
+		ImageViewPtr make(){
+			VkImageView view = VK_NULL_HANDLE;
+			auto err = vkCreateImageView(**logicalDevice,&info,VK_NULL_HANDLE,&view);
+
+			return std::make_shared<delete_wrap_ptr<VkImageView, DevicePtr>>(
+				view,
+				[](VkImageView ptr, DevicePtr device) {
+					std::cout << STR(vkDestroyImageView) << std::endl;
+					vkDestroyImageView(**device, ptr, VK_NULL_HANDLE);
+				},
+				logicalDevice);
+		}
+
+	};//ImageViewBuilder
 
 }
