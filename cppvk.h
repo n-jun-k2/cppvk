@@ -58,6 +58,7 @@ namespace cppvk {
 	using DevicePtr = shared_pointer<delete_wrap_ptr<VkDevice>>;
 	using SwapchainPtr = shared_pointer<delete_wrap_ptr<VkSwapchainKHR,DevicePtr>>;
 	using RenderpassPtr = shared_pointer<delete_wrap_ptr<VkRenderPass,DevicePtr>>;
+	using CommandPoolPtr = shared_pointer<delete_wrap_ptr<VkCommandPool,DevicePtr>>;
 
 	/**
 	 * @brief Object to own custom deleter
@@ -1182,6 +1183,39 @@ namespace cppvk {
 
 		}
 
+	};//RenderpassBuilder
+
+	class CommandPoolBuilder{
+		VkCommandPoolCreateInfo info = {};
+		DevicePtr logicalDevice;
+	public:
+		CommandPoolBuilder(DevicePtr pointer):logicalDevice(pointer){
+			info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+			info.pNext = VK_NULL_HANDLE;
+			info.flags = 0;
+		}
+
+		static CommandPoolBuilder get(DevicePtr pointer){
+			return CommandPoolBuilder(pointer);
+		}
+
+		CommandPoolBuilder queueFamilyIndices(const uint32_t& value){
+			info.queueFamilyIndex = value;
+			return *this;
+		}
+
+		CommandPoolPtr make(){
+			VkCommandPool cmdPool = VK_NULL_HANDLE;
+			auto err = vkCreateCommandPool(**logicalDevice,&info,VK_NULL_HANDLE,&cmdPool);
+
+			return std::make_shared<delete_wrap_ptr<VkCommandPool, DevicePtr>>(
+				cmdPool,
+				[](VkCommandPool ptr, DevicePtr device) {
+					std::cout << STR(vkDestroyCommandPool) << std::endl;
+					vkDestroyCommandPool(**device, ptr, VK_NULL_HANDLE);
+				},
+				logicalDevice);
+		}
 	};//RenderpassBuilder
 
 }

@@ -26,6 +26,7 @@ class VkContext {
 	cppvk::DevicePtr device;
 	cppvk::SwapchainPtr swapchain;
 	cppvk::RenderpassPtr renderpass;
+	cppvk::CommandPoolPtr commandpool;
 
 public:
 	VkContext() {}
@@ -169,6 +170,10 @@ public:
 				/*subpass.pPreserveAttachments データを保存するリソース*/
 			})
 			.build();
+
+		commandpool = cppvk::CommandPoolBuilder::get(device)
+			.queueFamilyIndices(cppvk::QueueFamilyIndices::GraphicsFamily(indices))
+			.make();
 
 	}
 };
