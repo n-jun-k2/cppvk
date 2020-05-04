@@ -1240,7 +1240,7 @@ namespace cppvk {
 			return *this;
 		}
 
-		CommandPoolPtr make(){
+		CommandPoolPtr build(){
 			VkCommandPool cmdPool = VK_NULL_HANDLE;
 			auto err = vkCreateCommandPool(**logicalDevice,&info,VK_NULL_HANDLE,&cmdPool);
 
@@ -1295,7 +1295,7 @@ namespace cppvk {
 			return *this;
 		}
 
-		ImageViewPtr make(){
+		ImageViewPtr build(){
 			VkImageView view = VK_NULL_HANDLE;
 			auto err = vkCreateImageView(**logicalDevice,&info,VK_NULL_HANDLE,&view);
 

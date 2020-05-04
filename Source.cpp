@@ -154,7 +154,7 @@ public:
 						0,
 						1
 					})
-					.make();
+					.build();
 		
 		auto verxCode = cppvk::helper::readFile(RESOURCE_Dir + "\\" + VERTEX_SPV);
 		auto fragCode = cppvk::helper::readFile(RESOURCE_Dir + "\\" + FRAGMENT_SPV);
@@ -216,7 +216,7 @@ public:
 
 		commandpool = cppvk::CommandPoolBuilder::get(device)
 			.queueFamilyIndices(cppvk::QueueFamilyIndices::GraphicsFamily(indices))
-			.make();
+			.build();
 
 	}
 };
