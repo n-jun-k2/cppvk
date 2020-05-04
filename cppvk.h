@@ -9,6 +9,7 @@
 #include <vector>
 #include <unordered_map>
 #include <functional>
+#include <fstream>
 #include <optional>
 #include <memory>
 #include <cassert>
@@ -42,6 +43,7 @@ namespace cppvk {
 	using Names = std::vector<const char*>;
 	using Indexs = std::vector<uint32_t>;
 	using Priorities = std::vector<float>;
+	using Code = std::vector<char>;
 	using QueueCreateInfos = std::vector<VkDeviceQueueCreateInfo>;
 	using SurfaceFormats = std::vector<VkSurfaceFormatKHR>;
 	using PresentModes = std::vector<VkPresentModeKHR>;
@@ -61,6 +63,7 @@ namespace cppvk {
 	using RenderpassPtr = shared_pointer<delete_wrap_ptr<VkRenderPass,DevicePtr>>;
 	using CommandPoolPtr = shared_pointer<delete_wrap_ptr<VkCommandPool,DevicePtr>>;
 	using ImageViewPtr = shared_pointer<delete_wrap_ptr<VkImageView,DevicePtr>>;
+	using ShaderModulePtr = shared_pointer<delete_wrap_ptr<VkShaderModule, DevicePtr>>;
 
 	/**
 	 * @brief Object to own custom deleter
@@ -421,6 +424,22 @@ namespace cppvk {
 			vkGetSwapchainImagesKHR(device, swapchain, &count, images.data());
 
 			return images;
+		}
+
+		static Code readFile(const std::string& filePath) {
+			std::ifstream file(filePath, std::ios::ate | std::ios::binary);
+
+			if (!file.is_open()) 
+				throw std::runtime_error("failed to open file!");
+			
+			auto fileSize = (size_t) file.tellg();
+			Code buffer(fileSize);
+
+			file.seekg(0);
+			file.read(buffer.data(), fileSize);
+			file.close();
+
+			return buffer;
 		}
 
 	};
@@ -1291,4 +1310,38 @@ namespace cppvk {
 
 	};//ImageViewBuilder
 
+	class ShaderModuleBuilder {
+		VkShaderModuleCreateInfo info;
+		DevicePtr logicalDevice;
+	public:
+		ShaderModuleBuilder(DevicePtr pointer) :logicalDevice(pointer) {
+			info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+			info.pNext = VK_NULL_HANDLE;
+			info.flags = 0;
+		}
+
+		static ShaderModuleBuilder get(DevicePtr pointer) {
+			return ShaderModuleBuilder(pointer);
+		}
+
+		ShaderModuleBuilder code(const Code& code) {
+			info.codeSize = code.size();
+			info.pCode = reinterpret_cast<const uint32_t*>(code.data());
+			return *this;
+		}
+
+		ShaderModulePtr build() {
+			VkShaderModule module = VK_NULL_HANDLE;
+			auto err = vkCreateShaderModule(**logicalDevice, &info, VK_NULL_HANDLE, &module);
+
+			return std::make_shared<delete_wrap_ptr<VkShaderModule, DevicePtr>>(
+				module,
+				[](VkShaderModule ptr, DevicePtr device) {
+					std::cout << STR(vkDestroyShaderModule) << std::endl;
+					vkDestroyShaderModule(**device, ptr, VK_NULL_HANDLE);
+				},
+				logicalDevice);
+		}
+		
+	};//ShaderModuleBuilder
 }

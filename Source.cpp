@@ -19,6 +19,10 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityF
 }
 #pragma warning(pop)
 
+const std::string RESOURCE_Dir = "resource";
+const std::string VERTEX_SPV = "vert.spv";
+const std::string FRAGMENT_SPV ="frag.spv";
+
 class VkContext {
 	cppvk::InstancePtr instance;
 	cppvk::DebugMessengerPtr dMessenger;
@@ -27,6 +31,9 @@ class VkContext {
 	cppvk::SwapchainPtr swapchain;
 	cppvk::RenderpassPtr renderpass;
 	cppvk::CommandPoolPtr commandpool;
+
+	cppvk::ShaderModulePtr vertexModule;
+	cppvk::ShaderModulePtr fragmentModule;
 
 	cppvk::ImageList images;
 	std::vector<cppvk::ImageViewPtr> imageViews;
@@ -149,6 +156,16 @@ public:
 					})
 					.make();
 		
+		auto verxCode = cppvk::helper::readFile(RESOURCE_Dir + "\\" + VERTEX_SPV);
+		auto fragCode = cppvk::helper::readFile(RESOURCE_Dir + "\\" + FRAGMENT_SPV);
+
+		vertexModule = cppvk::ShaderModuleBuilder::get(device)
+			.code(verxCode)
+			.build();
+
+		fragmentModule = cppvk::ShaderModuleBuilder::get(device)
+			.code(fragCode)
+			.build();
 
 		VkAttachmentReference colorAttachmentRef = {};
 		colorAttachmentRef.attachment = 0;
