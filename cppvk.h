@@ -34,6 +34,15 @@ namespace cppvk {
 		std::cerr << "VkResult : " << result << std::endl;
 		throw std::runtime_error("");
 	}
+
+	
+	template<class T, template<class cT, class A = std::allocator<cT>>class Container>
+	void add(Container<T>& container, const std::function<void(T&)>& createFunc) {
+		auto item = T{};
+		createFunc(item);
+		container.push_back(item);
+	}
+
 	
 	using ExtensionPropertiesList = std::vector< VkExtensionProperties>;
 	using LayerPropertiesList = std::vector< VkLayerProperties>;
@@ -1119,15 +1128,6 @@ namespace cppvk {
 		std::vector<VkAttachmentDescription> attachments;
 		std::vector<VkSubpassDescription> description;
 		std::vector<VkSubpassDependency> dependency;
-	private:
-
-		
-		template<class T, template<class cT, class A = std::allocator<cT>>class Container>
-		void add(Container<T>& container, const std::function<void(T&)>& createFunc) {
-			auto item = T{};
-			createFunc(item);
-			container.push_back(item);
-		}
 
 	public:
 		RenderpassBuilder(DevicePtr pointer):logicalDevice(pointer){
