@@ -36,6 +36,7 @@ class VkContext {
 
 	cppvk::ImageList images;
 	std::vector<cppvk::ImageViewPtr> imageViews;
+	std::vector<cppvk::FramebufferPtr> framebuffers;
 
 public:
 	VkContext() {}
@@ -270,6 +271,15 @@ public:
 			.renderpass(renderpass)
 			.subpass(0)
 			.build(VK_NULL_HANDLE);
+
+		for(uint32_t i = 0; i < imageViews.size(); ++i)
+			framebuffers.push_back(cppvk::FrameBufferBuilder::get(device)
+			.renderPass(renderpass)
+			.addAttachment(imageViews[i])
+			.width(extent.width)
+			.height(extent.height)
+			.layers(1)
+			.build());
 
 		commandpool = cppvk::CommandPoolBuilder::get(device)
 			.queueFamilyIndices(cppvk::QueueFamilyIndices::GraphicsFamily(indices))

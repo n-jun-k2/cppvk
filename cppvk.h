@@ -76,6 +76,7 @@ namespace cppvk {
 	using PipelineLayoutPtr = shared_pointer<delete_wrap_ptr<VkPipelineLayout,DevicePtr>>;
 	using ShaderModulePtr = shared_pointer<delete_wrap_ptr<VkShaderModule, DevicePtr>>;
 	using DescriptorPoolPtr = shared_pointer<delete_wrap_ptr<VkDescriptorPool, DevicePtr>>;
+	using FramebufferPtr = shared_pointer<delete_wrap_ptr<VkFramebuffer, DevicePtr>>;
 
 	/**
 	 * @brief Object to own custom deleter
@@ -2215,6 +2216,70 @@ namespace cppvk {
 				[](VkPipeline ptr, DevicePtr device) {
 					std::cout << STR(vkDestroyPipeline) << std::endl;
 					vkDestroyPipeline(**device, ptr, VK_NULL_HANDLE);
+				},
+				logicalDevice);
+		}
+
+	};
+
+	class FrameBufferBuilder {
+		VkFramebufferCreateInfo info;
+		DevicePtr logicalDevice;
+		std::vector<VkImageView> attachmentList;
+	public:
+		FrameBufferBuilder(DevicePtr pointer) : logicalDevice(pointer){
+			info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+			info.pNext = VK_NULL_HANDLE;
+			info.flags = 0;
+
+			info.attachmentCount = 0;
+			info.pAttachments = nullptr;
+		}
+
+		~FrameBufferBuilder(){}
+
+		static FrameBufferBuilder get(DevicePtr pointer){
+			return FrameBufferBuilder(pointer);
+		}
+
+		FrameBufferBuilder renderPass(RenderpassPtr pointer){
+			info.renderPass = **pointer;
+			return *this;
+		}
+
+		FrameBufferBuilder width(const uint32_t width){
+			info.width = width;
+			return *this;
+		}
+
+		FrameBufferBuilder height(const uint32_t height){
+			info.height = height;
+			return *this;
+		}
+
+		FrameBufferBuilder layers(const uint32_t layers){
+			info.layers = layers;
+			return *this;
+		}
+
+		FrameBufferBuilder addAttachment(ImageViewPtr& pointer){
+			attachmentList.push_back(**pointer);
+			return *this;
+		}
+
+		FramebufferPtr build() {
+			info.attachmentCount = attachmentList.size();
+			if(!attachmentList.empty())info.pAttachments = attachmentList.data();
+
+			VkFramebuffer buffer = VK_NULL_HANDLE;
+			auto err = vkCreateFramebuffer(**logicalDevice, &info, VK_NULL_HANDLE, &buffer);
+			Check(err);
+
+			return std::make_shared<delete_wrap_ptr<VkFramebuffer, DevicePtr>>(
+				buffer,
+				[](VkFramebuffer ptr, DevicePtr device) {
+					std::cout << STR(vkDestroyFramebuffer) << std::endl;
+					vkDestroyFramebuffer(**device, ptr, VK_NULL_HANDLE);
 				},
 				logicalDevice);
 		}
