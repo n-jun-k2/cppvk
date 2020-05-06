@@ -1208,6 +1208,7 @@ namespace cppvk {
 
 			VkRenderPass renderPass = VK_NULL_HANDLE;
 			auto err = vkCreateRenderPass(**logicalDevice,&info,VK_NULL_HANDLE,&renderPass);
+			Check(err);
 
 			return  std::make_shared<delete_wrap_ptr<VkRenderPass, DevicePtr>>(
 				renderPass,
@@ -1243,6 +1244,7 @@ namespace cppvk {
 		CommandPoolPtr build(){
 			VkCommandPool cmdPool = VK_NULL_HANDLE;
 			auto err = vkCreateCommandPool(**logicalDevice,&info,VK_NULL_HANDLE,&cmdPool);
+			Check(err);
 
 			return std::make_shared<delete_wrap_ptr<VkCommandPool, DevicePtr>>(
 				cmdPool,
@@ -1298,6 +1300,7 @@ namespace cppvk {
 		ImageViewPtr build(){
 			VkImageView view = VK_NULL_HANDLE;
 			auto err = vkCreateImageView(**logicalDevice,&info,VK_NULL_HANDLE,&view);
+			Check(err);
 
 			return std::make_shared<delete_wrap_ptr<VkImageView, DevicePtr>>(
 				view,
@@ -1333,6 +1336,7 @@ namespace cppvk {
 		ShaderModulePtr build() {
 			VkShaderModule module = VK_NULL_HANDLE;
 			auto err = vkCreateShaderModule(**logicalDevice, &info, VK_NULL_HANDLE, &module);
+			Check(err);
 
 			return std::make_shared<delete_wrap_ptr<VkShaderModule, DevicePtr>>(
 				module,
