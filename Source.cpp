@@ -31,9 +31,8 @@ class VkContext {
 	cppvk::SwapchainPtr swapchain;
 	cppvk::RenderpassPtr renderpass;
 	cppvk::CommandPoolPtr commandpool;
-
-	cppvk::ShaderModulePtr vertexModule;
-	cppvk::ShaderModulePtr fragmentModule;
+	cppvk::PipelineLayoutPtr pipelineLayout;
+	cppvk::PipelinePtr graphicPipline;
 
 	cppvk::ImageList images;
 	std::vector<cppvk::ImageViewPtr> imageViews;
@@ -155,17 +154,6 @@ public:
 						1
 					})
 					.build();
-		
-		auto verxCode = cppvk::helper::readFile(RESOURCE_Dir + "\\" + VERTEX_SPV);
-		auto fragCode = cppvk::helper::readFile(RESOURCE_Dir + "\\" + FRAGMENT_SPV);
-
-		vertexModule = cppvk::ShaderModuleBuilder::get(device)
-			.code(verxCode)
-			.build();
-
-		fragmentModule = cppvk::ShaderModuleBuilder::get(device)
-			.code(fragCode)
-			.build();
 
 		VkAttachmentReference colorAttachmentRef = {};
 		colorAttachmentRef.attachment = 0;
@@ -213,6 +201,75 @@ public:
 				/*subpass.pPreserveAttachments データを保存するリソース*/
 			})
 			.build();
+
+		pipelineLayout = cppvk::PipelineLayoutBuilder::get(device)
+			.build();
+
+		auto verxCode = cppvk::helper::readFile(RESOURCE_Dir + "\\" + VERTEX_SPV);
+		auto fragCode = cppvk::helper::readFile(RESOURCE_Dir + "\\" + FRAGMENT_SPV);
+
+		auto vertexModule = cppvk::ShaderModuleBuilder::get(device)
+			.code(verxCode)
+			.build();
+
+		auto fragmentModule = cppvk::ShaderModuleBuilder::get(device)
+			.code(fragCode)
+			.build();
+
+		graphicPipline = cppvk::GraphicsPipelineBuilder::get(device)
+			.addVertexStage(vertexModule)
+			.addFragmentStage(fragmentModule)
+			.patchControlPoints(0)
+			.topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST)
+			.primitiveRestartEnableOff()
+			.addViewports([&extent](VkViewport& viewport) {
+			viewport.x = 0.0f;
+			viewport.y = 0.0f;
+			viewport.width = static_cast<float>(extent.width);
+			viewport.height = static_cast<float>(extent.height);
+			viewport.minDepth = 0.0f;
+			viewport.maxDepth = 1.0f;	})
+			.addScissors([&extent](VkRect2D& scissor) {
+				scissor.offset = { 0, 0 };
+				scissor.extent = extent; })
+			.depthClampEnableOff()
+			.rasterizerDiscardEnableOff()
+			.polygonModeFill()
+			.lineWidth(1.0f)
+			.cullModeBack()
+			.frontFaceClockWise()
+			.depthBiasEnableOff()
+			.depthBiasConstantFactor(0.0f)
+			.depthBiasClamp(0.0f)
+			.depthBiasSlopeFactor(0.0f)
+			.sampleShadingEnableOff()
+			.rasterizationSampleCount1bit()
+			.minSampleShading(1.0f)
+			.alphaToCoverageEnableOff()
+			.alphaToOneEnableOff()
+			.pSampleMask(nullptr)
+			.addAttachment([](VkPipelineColorBlendAttachmentState& attachment) {
+					attachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+					attachment.blendEnable = VK_FALSE;
+					attachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE; // Optional
+					attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO; // Optional
+					attachment.colorBlendOp = VK_BLEND_OP_ADD; // Optional
+					attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE; // Optional
+					attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO; // Optional
+					attachment.alphaBlendOp = VK_BLEND_OP_ADD; // Optional
+				})
+			.logicOpEnableOff()
+			.logicOpStateCopy()
+			.blendConstants<0>(0.0f)
+			.blendConstants<1>(0.0f)
+			.blendConstants<2>(0.0f)
+			.blendConstants<3>(0.0f)
+			.addDynamicState(VK_DYNAMIC_STATE_VIEWPORT)
+			.addDynamicState(VK_DYNAMIC_STATE_LINE_WIDTH)
+			.layout(pipelineLayout)
+			.renderpass(renderpass)
+			.subpass(0)
+			.build(VK_NULL_HANDLE);
 
 		commandpool = cppvk::CommandPoolBuilder::get(device)
 			.queueFamilyIndices(cppvk::QueueFamilyIndices::GraphicsFamily(indices))

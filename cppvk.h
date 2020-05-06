@@ -72,7 +72,10 @@ namespace cppvk {
 	using RenderpassPtr = shared_pointer<delete_wrap_ptr<VkRenderPass,DevicePtr>>;
 	using CommandPoolPtr = shared_pointer<delete_wrap_ptr<VkCommandPool,DevicePtr>>;
 	using ImageViewPtr = shared_pointer<delete_wrap_ptr<VkImageView,DevicePtr>>;
+	using PipelinePtr = shared_pointer<delete_wrap_ptr<VkPipeline,DevicePtr>>;
+	using PipelineLayoutPtr = shared_pointer<delete_wrap_ptr<VkPipelineLayout,DevicePtr>>;
 	using ShaderModulePtr = shared_pointer<delete_wrap_ptr<VkShaderModule, DevicePtr>>;
+	using DescriptorPoolPtr = shared_pointer<delete_wrap_ptr<VkDescriptorPool, DevicePtr>>;
 
 	/**
 	 * @brief Object to own custom deleter
@@ -1348,4 +1351,874 @@ namespace cppvk {
 		}
 		
 	};//ShaderModuleBuilder
+
+	class DescriptorPoolBuilder{
+		VkDescriptorPoolCreateInfo info;
+		DevicePtr logicalDevice;
+		std::vector<VkDescriptorPoolSize> poolSizeList;
+	public:
+		DescriptorPoolBuilder(DevicePtr pointer):logicalDevice(pointer){
+			info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+			info.pNext = VK_NULL_HANDLE;
+			info.flags = 0;
+		}
+
+		static DescriptorPoolBuilder get(DevicePtr pointer){
+			return DescriptorPoolBuilder(pointer);
+		}
+
+		DescriptorPoolBuilder maxSets(const uint32_t set){
+			info.maxSets = set;
+			return *this;
+		}
+
+		DescriptorPoolBuilder addPoolSize(const std::function<void(VkDescriptorPoolSize&)>& createFunc){
+			add<VkDescriptorPoolSize>(poolSizeList,createFunc);
+			return *this;
+		}
+
+		DescriptorPoolPtr build() {
+			info.poolSizeCount = poolSizeList.size();
+			info.pPoolSizes = poolSizeList.data();
+
+			VkDescriptorPool pool = VK_NULL_HANDLE;
+			auto err = vkCreateDescriptorPool(**logicalDevice, &info, VK_NULL_HANDLE, &pool);
+			Check(err);
+
+			return std::make_shared<delete_wrap_ptr<VkDescriptorPool, DevicePtr>>(
+				pool,
+				[](VkDescriptorPool ptr, DevicePtr device) {
+					std::cout << STR(vkDestroyDescriptorPool) << std::endl;
+					vkDestroyDescriptorPool(**device, ptr, VK_NULL_HANDLE);
+				},
+				logicalDevice);
+		}
+
+	};//DescriptorPoolBuilder
+
+	class PipelineLayoutBuilder{
+		VkPipelineLayoutCreateInfo info;
+		DevicePtr logicalDevice;
+		std::vector<VkDescriptorSetLayout> layoutList;
+		std::vector<VkPushConstantRange> constantRangeList;
+	public:
+		PipelineLayoutBuilder(DevicePtr pointer):logicalDevice(pointer){
+			info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+			info.pNext = VK_NULL_HANDLE;
+			info.flags = 0;
+		}
+
+		~PipelineLayoutBuilder(){}
+
+		static PipelineLayoutBuilder get(DevicePtr pointer){
+			return PipelineLayoutBuilder(pointer);
+		}
+
+		PipelineLayoutPtr build() {
+			info.setLayoutCount = layoutList.size();
+			if(!layoutList.empty())info.pSetLayouts = layoutList.data();
+
+			info.pushConstantRangeCount = constantRangeList.size();
+			if(!constantRangeList.empty())info.pPushConstantRanges = constantRangeList.data();
+
+			VkPipelineLayout layout = VK_NULL_HANDLE;
+			auto err = vkCreatePipelineLayout(**logicalDevice, &info, VK_NULL_HANDLE, &layout);
+			Check(err);
+
+			return std::make_shared<delete_wrap_ptr<VkPipelineLayout, DevicePtr>>(
+				layout,
+				[](VkPipelineLayout ptr, DevicePtr device) {
+					std::cout << STR(vkDestroyPipelineLayout) << std::endl;
+					vkDestroyPipelineLayout(**device, ptr, VK_NULL_HANDLE);
+				},
+				logicalDevice);
+		}
+
+		PipelineLayoutBuilder addPushConstantRange(const std::function<void(VkPushConstantRange&)> createFunc){
+			add<VkPushConstantRange>(constantRangeList, createFunc);
+			return *this;
+		}
+
+		PipelineLayoutBuilder addLayout(const std::function<void(VkDescriptorSetLayout&)> createFunc){
+			add<VkDescriptorSetLayout>(layoutList, createFunc);
+			return *this;
+		}
+
+	};//PiplineLayoutBuilder
+
+	class GraphicsPipelineBuilder{
+		VkGraphicsPipelineCreateInfo info;
+		DevicePtr logicalDevice;
+		std::vector<VkPipelineShaderStageCreateInfo> stageList;
+
+		//vertexInputStateで使用 Enableフラグの代わりにも使用する。
+		std::vector<VkVertexInputAttributeDescription> vertexAttributeDescriptionList;
+		std::vector<VkVertexInputBindingDescription> vertexBindingDescriptionList;
+		//viewportStateで使用 Enableフラグの代わりにも使用する。
+		std::vector<VkViewport> viewportList;
+		std::vector<VkRect2D> scissorList;
+		//colorBlendStateで使用。
+		std::vector<VkPipelineColorBlendAttachmentState> attachmentList;
+		//dynamicStateで使用 Enableフラグの代わりにも使用する。
+		std::vector<VkDynamicState> dynamicStateList;
+
+		bool inputAssemblyStateEnable = false;
+		bool tessellationStateEnable = false;
+		bool rasterizationStateEnable = false;
+		bool multisampleStateEnable = false;
+		bool depthStencilStateEnable = false;
+		bool colorBlendStateEnable = false;
+
+		const std::string ENTRY_NAME = "main";
+
+		VkPipelineVertexInputStateCreateInfo vertexInputState;
+		VkPipelineInputAssemblyStateCreateInfo inputAssemblyState;
+		VkPipelineTessellationStateCreateInfo tessellationState;
+		VkPipelineViewportStateCreateInfo viewportState;
+		VkPipelineRasterizationStateCreateInfo rasterizationState;
+		VkPipelineMultisampleStateCreateInfo multisampleState;
+		VkPipelineDepthStencilStateCreateInfo depthStencilState;
+		VkPipelineColorBlendStateCreateInfo colorBlendState;
+		VkPipelineDynamicStateCreateInfo dynamicState;
+
+		void addStage(VkShaderStageFlagBits stage, ShaderModulePtr& module){
+			VkPipelineShaderStageCreateInfo sInfo = {};
+			sInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+			sInfo.pNext = VK_NULL_HANDLE;
+			sInfo.flags = 0;
+			sInfo.stage = stage;
+			sInfo.module = **module;
+			sInfo.pName = ENTRY_NAME.c_str();
+
+			stageList.push_back(sInfo);
+		}
+
+	public:
+
+		GraphicsPipelineBuilder(DevicePtr pointer):logicalDevice(pointer){
+			info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+			info.pNext = VK_NULL_HANDLE;
+			info.flags = 0;
+			info.basePipelineHandle = VK_NULL_HANDLE;
+			info.basePipelineIndex = -1;
+
+			vertexInputState.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+			vertexInputState.pNext = NULL;
+			vertexInputState.flags = 0;
+			vertexInputState.vertexAttributeDescriptionCount = 0;
+			vertexInputState.vertexBindingDescriptionCount = 0;
+			vertexInputState.pVertexAttributeDescriptions = nullptr;
+			vertexInputState.pVertexBindingDescriptions = nullptr;
+
+			inputAssemblyState.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+			inputAssemblyState.pNext = NULL;
+			inputAssemblyState.flags = 0;
+
+			tessellationState.sType = VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO;
+			tessellationState.pNext = NULL;
+			tessellationState.flags = 0;
+			tessellationState.patchControlPoints = 0;
+
+			viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+			viewportState.pNext = NULL;
+			viewportState.flags = 0;
+
+			rasterizationState.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+			rasterizationState.pNext = NULL;
+			rasterizationState.flags = 0;
+
+			multisampleState.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+			multisampleState.pNext = NULL;
+			multisampleState.flags = 0;
+
+			depthStencilState.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+			depthStencilState.pNext = NULL;
+			depthStencilState.flags = 0;
+
+			colorBlendState.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+			colorBlendState.pNext = NULL;
+			colorBlendState.flags = 0;
+
+			dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+			dynamicState.pNext = NULL;
+			dynamicState.flags = 0;
+		}
+
+		static GraphicsPipelineBuilder get(DevicePtr pointer){
+			return GraphicsPipelineBuilder(pointer);
+		}
+
+		GraphicsPipelineBuilder addVertexStage(ShaderModulePtr& module){
+			addStage(VK_SHADER_STAGE_VERTEX_BIT,module);
+			return *this;
+		}
+
+		GraphicsPipelineBuilder addTessellationControlStage(ShaderModulePtr& module){
+			addStage(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT ,module);
+			return *this;
+		}
+
+		GraphicsPipelineBuilder addTessellationEvaluationStage(ShaderModulePtr& module){
+			addStage(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT  ,module);
+			return *this;
+		}
+
+		GraphicsPipelineBuilder addGeometryStage(ShaderModulePtr& module){
+			addStage(VK_SHADER_STAGE_GEOMETRY_BIT,module);
+			return *this;
+		}
+
+		GraphicsPipelineBuilder addFragmentStage(ShaderModulePtr& module){
+			addStage(VK_SHADER_STAGE_FRAGMENT_BIT,module);
+			return *this;
+		}
+
+		GraphicsPipelineBuilder addComputeStage(ShaderModulePtr& module){
+			addStage(VK_SHADER_STAGE_COMPUTE_BIT,module);
+			return *this;
+		}
+
+		GraphicsPipelineBuilder addAllGraphicsStage(ShaderModulePtr& module){
+			addStage(VK_SHADER_STAGE_ALL_GRAPHICS,module);
+			return *this;
+		}
+
+		GraphicsPipelineBuilder addAllStage(ShaderModulePtr& module){
+			addStage(VK_SHADER_STAGE_ALL,module);
+			return *this;
+		}
+
+		//GraphicsPipelineBuilder addRaygenStage(ShaderModulePtr& module){
+		//	addStage(VK_SHADER_STAGE_RAYGEN_BIT_KHR,module);
+		//	return *this;
+		//}
+
+		//GraphicsPipelineBuilder addAnyHitStage(ShaderModulePtr& module){
+		//	addStage(VK_SHADER_STAGE_ANY_HIT_BIT_KHR,module);
+		//	return *this;
+		//}
+
+		//GraphicsPipelineBuilder addClosestHitStage(ShaderModulePtr& module){
+		//	addStage(VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR,module);
+		//	return *this;
+		//}
+
+		//GraphicsPipelineBuilder addMissStage(ShaderModulePtr& module){
+		//	addStage(VK_SHADER_STAGE_MISS_BIT_KHR,module);
+		//	return *this;
+		//}
+
+		//GraphicsPipelineBuilder addIntersectionStage(ShaderModulePtr& module){
+		//	addStage(VK_SHADER_STAGE_INTERSECTION_BIT_KHR,module);
+		//	return *this;
+		//}
+
+		//GraphicsPipelineBuilder addCallableStage(ShaderModulePtr& module){
+		//	addStage(VK_SHADER_STAGE_CALLABLE_BIT_KHR,module);
+		//	return *this;
+		//}
+
+		GraphicsPipelineBuilder addTaskStage(ShaderModulePtr& module){
+			addStage(VK_SHADER_STAGE_TASK_BIT_NV,module);
+			return *this;
+		}
+
+		GraphicsPipelineBuilder addMeshStage(ShaderModulePtr& module){
+			addStage(VK_SHADER_STAGE_MESH_BIT_NV,module);
+			return *this;
+		}
+
+		GraphicsPipelineBuilder addVertexBindingDescription(const std::function<void(VkVertexInputBindingDescription&)>& createFunc){
+			add<VkVertexInputBindingDescription>(vertexBindingDescriptionList, createFunc);
+			return *this;
+		}
+
+		GraphicsPipelineBuilder addVertexAttributeDescription(const std::function<void(VkVertexInputAttributeDescription&)>& createFunc) {
+			add<VkVertexInputAttributeDescription>(vertexAttributeDescriptionList, createFunc);
+			return *this;
+		}
+
+		GraphicsPipelineBuilder topology(VkPrimitiveTopology topology){
+			inputAssemblyState.topology = topology;
+			inputAssemblyStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder primitiveRestartEnableOn(){
+			inputAssemblyState.primitiveRestartEnable = VK_TRUE;
+			inputAssemblyStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder primitiveRestartEnableOff() {
+			inputAssemblyState.primitiveRestartEnable = VK_FALSE;
+			inputAssemblyStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder patchControlPoints(const uint32_t points){
+			tessellationState.patchControlPoints = points;
+			tessellationStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder addViewports(const std::function<void(VkViewport&)> createFunc){
+			add<VkViewport>(viewportList,createFunc);
+			return *this;
+		}
+
+		GraphicsPipelineBuilder addScissors(const std::function<void(VkRect2D&)> createFunc){
+			add<VkRect2D>(scissorList,createFunc);
+			return *this;
+		}
+
+		GraphicsPipelineBuilder depthClampEnableOn(){
+			rasterizationState.depthClampEnable = VK_TRUE;
+			rasterizationStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder depthClampEnableOff(){
+			rasterizationState.depthClampEnable = VK_FALSE;
+			rasterizationStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder rasterizerDiscardEnableOn(){
+			rasterizationState.rasterizerDiscardEnable = VK_TRUE;
+			rasterizationStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder rasterizerDiscardEnableOff(){
+			rasterizationState.rasterizerDiscardEnable = VK_FALSE;
+			rasterizationStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder polygonModeFill(){
+			rasterizationState.polygonMode = VK_POLYGON_MODE_FILL;
+			rasterizationStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder polygonModeLine() {
+			rasterizationState.polygonMode = VK_POLYGON_MODE_LINE;
+			rasterizationStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder polygonModePoint() {
+			rasterizationState.polygonMode = VK_POLYGON_MODE_POINT;
+			rasterizationStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder polygonModeFillRectangleNV() {
+			rasterizationState.polygonMode = VK_POLYGON_MODE_FILL_RECTANGLE_NV;
+			rasterizationStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder cullModeNone(){
+			rasterizationState.cullMode = VK_CULL_MODE_NONE;
+			rasterizationStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder cullModeFront() {
+			rasterizationState.cullMode = VK_CULL_MODE_FRONT_BIT;
+			rasterizationStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder cullModeBack() {
+			rasterizationState.cullMode = VK_CULL_MODE_BACK_BIT;
+			rasterizationStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder cullModeFrontAndBack() {
+			rasterizationState.cullMode = VK_CULL_MODE_FRONT_AND_BACK;
+			rasterizationStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder frontFaceCounterClockWise(){
+			rasterizationState.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+			rasterizationStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder frontFaceClockWise(){
+			rasterizationState.frontFace = VK_FRONT_FACE_CLOCKWISE;
+			rasterizationStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder depthBiasEnableOn(){
+			rasterizationState.depthBiasEnable = VK_TRUE;
+			rasterizationStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder depthBiasEnableOff(){
+			rasterizationState.depthBiasEnable = VK_FALSE;
+			rasterizationStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder depthBiasConstantFactor(const float& value){
+			rasterizationState.depthBiasConstantFactor = value;
+			rasterizationStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder depthBiasClamp(const float& value){
+			rasterizationState.depthBiasClamp = value;
+			rasterizationStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder depthBiasSlopeFactor(const float& value){
+			rasterizationState.depthBiasSlopeFactor = value;
+			rasterizationStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder lineWidth(const float& value){
+			rasterizationState.lineWidth = value;
+			rasterizationStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder rasterizationSampleCount1bit(){
+			multisampleState.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+			multisampleStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder rasterizationSampleCount2bit(){
+			multisampleState.rasterizationSamples = VK_SAMPLE_COUNT_2_BIT;
+			multisampleStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder rasterizationSampleCount4bit(){
+			multisampleState.rasterizationSamples = VK_SAMPLE_COUNT_4_BIT;
+			multisampleStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder rasterizationSampleCount8bit(){
+			multisampleState.rasterizationSamples = VK_SAMPLE_COUNT_8_BIT;
+			multisampleStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder rasterizationSampleCount16bit(){
+			multisampleState.rasterizationSamples = VK_SAMPLE_COUNT_16_BIT;
+			multisampleStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder rasterizationSampleCount32bit(){
+			multisampleState.rasterizationSamples = VK_SAMPLE_COUNT_32_BIT;
+			multisampleStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder rasterizationSampleCount64bit(){
+			multisampleState.rasterizationSamples = VK_SAMPLE_COUNT_64_BIT;
+			multisampleStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder sampleShadingEnableOn(){
+			multisampleState.sampleShadingEnable = VK_TRUE;
+			multisampleStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder sampleShadingEnableOff(){
+			multisampleState.sampleShadingEnable = VK_FALSE;
+			multisampleStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder minSampleShading(const float value){
+			multisampleState.minSampleShading = value;
+			multisampleStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder pSampleMask(const VkSampleMask* value){
+			multisampleState.pSampleMask = value;
+			multisampleStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder alphaToCoverageEnableOn(){
+			multisampleState.alphaToCoverageEnable = VK_TRUE;
+			multisampleStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder alphaToCoverageEnableOff(){
+			multisampleState.alphaToCoverageEnable = VK_FALSE;
+			multisampleStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder alphaToOneEnableOn(){
+			multisampleState.alphaToOneEnable = VK_TRUE;
+			multisampleStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder alphaToOneEnableOff(){
+			multisampleState.alphaToOneEnable = VK_FALSE;
+			multisampleStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder depthTestEnableOn(){
+			depthStencilState.depthTestEnable = VK_TRUE;
+			depthStencilStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder depthTestEnableOff(){
+			depthStencilState.depthTestEnable = VK_FALSE;
+			depthStencilStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder depthWriteEnableOn(){
+			depthStencilState.depthWriteEnable = VK_TRUE;
+			depthStencilStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder depthWriteEnableOff(){
+			depthStencilState.depthWriteEnable = VK_FALSE;
+			depthStencilStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder depthCompareOpNever(){
+			depthStencilState.depthCompareOp = VK_COMPARE_OP_NEVER;
+			depthStencilStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder depthCompareOpLess(){
+			depthStencilState.depthCompareOp = VK_COMPARE_OP_LESS;
+			depthStencilStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder depthCompareOpEqual(){
+			depthStencilState.depthCompareOp = VK_COMPARE_OP_EQUAL;
+			depthStencilStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder depthCompareOpLessOrEqual(){
+			depthStencilState.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+			depthStencilStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder depthCompareOpGreater(){
+			depthStencilState.depthCompareOp = VK_COMPARE_OP_GREATER;
+			depthStencilStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder depthCompareOpNotEqual(){
+			depthStencilState.depthCompareOp = VK_COMPARE_OP_NOT_EQUAL;
+			depthStencilStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder depthCompareOpGreaterOrEqual(){
+			depthStencilState.depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL ;
+			depthStencilStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder depthCompareOpAlways(){
+			depthStencilState.depthCompareOp = VK_COMPARE_OP_ALWAYS;
+			depthStencilStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder depthBoundsTestEnableOn(){
+			depthStencilState.depthBoundsTestEnable = VK_TRUE;
+			depthStencilStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder depthBoundsTestEnableOff(){
+			depthStencilState.depthBoundsTestEnable = VK_FALSE;
+			depthStencilStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder stencilTestEnableOn(){
+			depthStencilState.stencilTestEnable = VK_TRUE;
+			depthStencilStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder stencilTestEnableOff(){
+			depthStencilState.stencilTestEnable = VK_FALSE;
+			depthStencilStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder stencilFrontState(const VkStencilOpState& state){
+			depthStencilState.front = state;
+			depthStencilStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder stencilBackState(const VkStencilOpState& state){
+			depthStencilState.back = state;
+			depthStencilStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder minDepthBounds(const float& value){
+			depthStencilState.minDepthBounds = value;
+			depthStencilStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder maxDepthBounds(const float& value){
+			depthStencilState.maxDepthBounds = value;
+			depthStencilStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder logicOpEnableOn(){
+			colorBlendState.logicOpEnable = VK_TRUE;
+			colorBlendStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder logicOpEnableOff(){
+			colorBlendState.logicOpEnable = VK_FALSE;
+			colorBlendStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder logicOpStateClear(){
+			colorBlendState.logicOp = VK_LOGIC_OP_CLEAR;
+			colorBlendStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder logicOpStateAnd(){
+			colorBlendState.logicOp = VK_LOGIC_OP_AND;
+			colorBlendStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder logicOpStateReverse(){
+			colorBlendState.logicOp = VK_LOGIC_OP_AND_REVERSE;
+			colorBlendStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder logicOpStateCopy(){
+			colorBlendState.logicOp = VK_LOGIC_OP_COPY;
+			colorBlendStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder logicOpStateInverted(){
+			colorBlendState.logicOp = VK_LOGIC_OP_AND_INVERTED;
+			colorBlendStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder logicOpStateNoOp(){
+			colorBlendState.logicOp = VK_LOGIC_OP_NO_OP;
+			colorBlendStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder logicOpStateXor(){
+			colorBlendState.logicOp = VK_LOGIC_OP_XOR;
+			colorBlendStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder logicOpStateOr(){
+			colorBlendState.logicOp = VK_LOGIC_OP_OR;
+			colorBlendStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder logicOpStateNor(){
+			colorBlendState.logicOp = VK_LOGIC_OP_NOR;
+			colorBlendStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder logicOpStateEquivalent(){
+			colorBlendState.logicOp = VK_LOGIC_OP_EQUIVALENT;
+			colorBlendStateEnable = true;
+			return *this;
+		}
+		
+
+		GraphicsPipelineBuilder logicOpStateInvert(){
+			colorBlendState.logicOp = VK_LOGIC_OP_INVERT;
+			colorBlendStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder logicOpStateOrReverse(){
+			colorBlendState.logicOp = VK_LOGIC_OP_OR_REVERSE;
+			colorBlendStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder logicOpStateCopyInverted(){
+			colorBlendState.logicOp = VK_LOGIC_OP_COPY_INVERTED;
+			colorBlendStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder logicOpStateOrInverted(){
+			colorBlendState.logicOp = VK_LOGIC_OP_OR_INVERTED;
+			colorBlendStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder logicOpStateNand(){
+			colorBlendState.logicOp = VK_LOGIC_OP_NAND;
+			colorBlendStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder logicOpStateSet(){
+			colorBlendState.logicOp = VK_LOGIC_OP_SET;
+			colorBlendStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder addAttachment(const std::function<void(VkPipelineColorBlendAttachmentState&)>& createFunc){
+			add<VkPipelineColorBlendAttachmentState>(attachmentList,createFunc);
+			colorBlendStateEnable = true;
+			return *this;
+		}
+
+		template<uint32_t idx>
+		GraphicsPipelineBuilder blendConstants(const float& value){
+			colorBlendState.blendConstants[idx] = value;
+			colorBlendStateEnable = true;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder addDynamicState(const VkDynamicState& value){
+			dynamicStateList.push_back(value);
+			return *this;
+		}
+
+		GraphicsPipelineBuilder layout(PipelineLayoutPtr layout){
+			info.layout = **layout;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder renderpass(RenderpassPtr renderpass){
+			info.renderPass = **renderpass;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder subpass(const uint32_t& subpass){
+			info.subpass = subpass;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder basePipelineHandle(PipelinePtr pipeline){
+			info.basePipelineHandle = **pipeline;
+			return *this;
+		}
+
+		GraphicsPipelineBuilder basePipelineIndex(const int32_t& index){
+			info.basePipelineIndex = index;
+			return *this;
+		}
+
+		PipelinePtr build(VkPipelineCache cache){
+
+			assert(colorBlendStateEnable
+				&& inputAssemblyStateEnable
+				&& tessellationStateEnable
+				&& rasterizationStateEnable
+				&& multisampleStateEnable
+				&& !scissorList.empty()
+				&& !viewportList.empty()
+				&& !stageList.empty());
+
+			if (!stageList.empty()) {
+				info.stageCount = stageList.size();
+				info.pStages = stageList.data();
+			}
+			if(!vertexAttributeDescriptionList.empty()){
+				vertexInputState.vertexAttributeDescriptionCount = vertexAttributeDescriptionList.size();
+				vertexInputState.pVertexAttributeDescriptions = vertexAttributeDescriptionList.data();
+			}
+			if(!vertexBindingDescriptionList.empty()){
+				vertexInputState.vertexBindingDescriptionCount = vertexBindingDescriptionList.size();
+				vertexInputState.pVertexBindingDescriptions = vertexBindingDescriptionList.data();
+			}
+			if (!viewportList.empty()) {
+				viewportState.viewportCount = viewportList.size();
+				viewportState.pViewports = viewportList.data();
+			}
+			if (!scissorList.empty()) {
+				viewportState.scissorCount = scissorList.size();
+				viewportState.pScissors = scissorList.data();
+			}
+			if (!attachmentList.empty()) {
+				colorBlendState.attachmentCount = attachmentList.size();
+				colorBlendState.pAttachments = attachmentList.data();
+			}
+
+			if (!dynamicStateList.empty()) { //Optional
+				dynamicState.dynamicStateCount = dynamicStateList.size();
+				dynamicState.pDynamicStates = dynamicStateList.data();
+				info.pDynamicState = &dynamicState;
+			}
+			if (depthStencilStateEnable) //Optional
+				info.pDepthStencilState = &depthStencilState;
+			
+			info.pVertexInputState = &vertexInputState;
+			info.pViewportState = &viewportState;
+			info.pColorBlendState = &colorBlendState;
+			info.pInputAssemblyState = &inputAssemblyState;
+			info.pTessellationState = &tessellationState;
+			info.pRasterizationState = &rasterizationState;
+			info.pMultisampleState = &multisampleState;
+
+			VkPipeline pipeline = VK_NULL_HANDLE;
+			auto err = vkCreateGraphicsPipelines(**logicalDevice, cache, 1, &info, VK_NULL_HANDLE, &pipeline);
+			Check(err);
+
+			return std::make_shared<delete_wrap_ptr<VkPipeline, DevicePtr>>(
+				pipeline,
+				[](VkPipeline ptr, DevicePtr device) {
+					std::cout << STR(vkDestroyPipeline) << std::endl;
+					vkDestroyPipeline(**device, ptr, VK_NULL_HANDLE);
+				},
+				logicalDevice);
+		}
+
+	};
+
 }
