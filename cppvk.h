@@ -28,11 +28,11 @@ namespace cppvk {
 	 * 
 	 * @param result 
 	 */
-	void Check(const VkResult& result)
+	void Check(const VkResult& result,const std::string& message = "")
 	{
 		if (result == VK_SUCCESS)return;
 		std::cerr << "VkResult : " << result << std::endl;
-		throw std::runtime_error("");
+		throw std::runtime_error(message);
 	}
 
 	
