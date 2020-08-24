@@ -2,9 +2,10 @@
 
 #pragma warning(push)
 #pragma warning(disable : 26812)
+#pragma warning(disable : 4505)
+
 #define VK_USE_PLATFORM_WIN32_KHR
 #include <vulkan/vulkan.h>
-#pragma warning(pop)
 
 #include <vector>
 #include <unordered_map>
@@ -21,34 +22,16 @@
 #undef min
 #undef max
 
+
 namespace cppvk {
-
-	/**
-	 * @brief 
-	 * 
-	 * @param result 
-	 */
-	void Check(const VkResult& result,const std::string& message = "")
-	{
-		if (result == VK_SUCCESS)return;
-		std::cerr << "VkResult : " << result << std::endl;
-		throw std::runtime_error(message);
-	}
-
 	
-	template<class T, template<class cT, class A = std::allocator<cT>>class Container>
-	void add(Container<T>& container, const std::function<void(T&)>& createFunc) {
-		auto item = T{};
-		createFunc(item);
-		container.push_back(item);
-	}
+	/*先行宣言*/
+	struct PhyscialDeivceSet;
 
-	
 	using ExtensionPropertiesList = std::vector< VkExtensionProperties>;
 	using LayerPropertiesList = std::vector< VkLayerProperties>;
 	using PhysicalDeviceList = std::vector< VkPhysicalDevice>;
 	using PhysicalDeviceGroupList = std::vector< VkPhysicalDeviceGroupProperties>;
-	using ImageList = std::vector< VkImage>;
 	using Names = std::vector<const char*>;
 	using Indexs = std::vector<uint32_t>;
 	using Priorities = std::vector<float>;
@@ -57,50 +40,266 @@ namespace cppvk {
 	using SurfaceFormats = std::vector<VkSurfaceFormatKHR>;
 	using PresentModes = std::vector<VkPresentModeKHR>;
 	using PhysicalDeviceQueueProps = std::vector<VkQueueFamilyProperties>;
-	using ChoosePhysicalDeviceFuncInstanceBuilder = std::function<bool(const VkPhysicalDeviceProperties, const VkPhysicalDeviceFeatures)>;
+	using ChoosePhysicalDeviceFuncInstanceBuilder = std::function<bool (PhyscialDeivceSet&)>;
 	using IsSuitableQueuePropFuncInstanceBuilder = std::function<bool(VkQueueFamilyProperties)>;
-	
-	template <typename T, typename... Args>class delete_wrap_ptr;
-
 	template <typename T>using shared_pointer = std::shared_ptr<std::remove_pointer_t<T>>;
-	using InstancePtr = shared_pointer <delete_wrap_ptr<VkInstance>>;
-	using DebugMessengerPtr = shared_pointer < delete_wrap_ptr< VkDebugUtilsMessengerEXT, InstancePtr>>;
-	using SurfacePtr = shared_pointer < delete_wrap_ptr< VkSurfaceKHR, InstancePtr>>;
-	using PhysicalDevicePtr = shared_pointer< VkPhysicalDevice>;
-	using DevicePtr = shared_pointer<delete_wrap_ptr<VkDevice>>;
-	using SwapchainPtr = shared_pointer<delete_wrap_ptr<VkSwapchainKHR,DevicePtr>>;
-	using RenderpassPtr = shared_pointer<delete_wrap_ptr<VkRenderPass,DevicePtr>>;
-	using CommandPoolPtr = shared_pointer<delete_wrap_ptr<VkCommandPool,DevicePtr>>;
-	using ImageViewPtr = shared_pointer<delete_wrap_ptr<VkImageView,DevicePtr>>;
-	using PipelinePtr = shared_pointer<delete_wrap_ptr<VkPipeline,DevicePtr>>;
-	using PipelineLayoutPtr = shared_pointer<delete_wrap_ptr<VkPipelineLayout,DevicePtr>>;
-	using ShaderModulePtr = shared_pointer<delete_wrap_ptr<VkShaderModule, DevicePtr>>;
-	using DescriptorPoolPtr = shared_pointer<delete_wrap_ptr<VkDescriptorPool, DevicePtr>>;
-	using FramebufferPtr = shared_pointer<delete_wrap_ptr<VkFramebuffer, DevicePtr>>;
+
+	#define TO_VKPFN(NAME) PFN_##NAME
+	#define GetVkInstanceProcAddr(instance, FUNCNAME) \
+		(TO_VKPFN(FUNCNAME))vkGetInstanceProcAddr(instance, #FUNCNAME)
+
+
+	template<class T, template<class cT, class A = std::allocator<cT>>class Container>
+	void _add(Container<T>& container, const std::function<void(T&)>& createFunc) {
+		auto item = T{};
+		createFunc(item);
+		container.push_back(item);
+	}
+	/* VkResult判定処理	 */
+	void Check(const VkResult& result, const std::string& message = "")
+	{
+		if (result == VK_SUCCESS)return;
+		std::cerr << "VkResult : " << result << std::endl;
+		throw std::runtime_error(message);
+	}
+	/* target文字列配列が全てsource配列の要素にあるのかの存在を確認する。存在した場合：真*/
+	template<class _T, template<class... Args>class Container>
+	static bool _ExistSupport(const Names& target, const Container<_T>& source, std::function<const char* (const _T&)> toString) noexcept {
+		//そもそも比較必要がない場合。
+		if (target.size() == 0) return true;
+
+		bool isfound = false;
+		for (const auto& t : target)/*確認したい項目*/
+		{
+			for (const auto& s : source)/*現環境の機能リストを走査*/
+			{
+				isfound = strcmp(t, toString(s)) == 0;
+				if (isfound)break;
+			}
+			//一致していなかった場合
+			if (!isfound)return false;
+		}
+		//全て走査できた場合
+		return true;
+	}
+	/* source配列にtarget名が全て存在するか。 */
+	static bool ExistSupport(const Names& target, const ExtensionPropertiesList& source) {
+		return _ExistSupport<VkExtensionProperties, std::vector>(target, source, [](VkExtensionProperties prop) {return prop.extensionName; });
+	}
+	/* source配列にtarget名が全て存在するか。 */
+	static bool ExistSupport(const Names& target, const LayerPropertiesList& source) {
+		return _ExistSupport<VkLayerProperties, std::vector>(target, source, [](VkLayerProperties prop) {return prop.layerName; });
+	}
+	/*ファイル読み込み処理*/
+	static Code readFile(const std::string& filePath) {
+		std::ifstream file(filePath, std::ios::ate | std::ios::binary);
+
+		if (!file.is_open())
+			throw std::runtime_error("failed to open file!");
+
+		auto fileSize = (size_t)file.tellg();
+		Code buffer(fileSize);
+
+		file.seekg(0);
+		file.read(buffer.data(), fileSize);
+		file.close();
+
+		return buffer;
+	}
+	/*VulkanAPIの対応拡張機能一覧*/
+	static ExtensionPropertiesList GetEnumerateInstanceExtension() {
+		uint32_t size = 0;
+		Check(vkEnumerateInstanceExtensionProperties(nullptr, &size, nullptr));
+
+		ExtensionPropertiesList list(size);
+		Check(vkEnumerateInstanceExtensionProperties(nullptr, &size, list.data()));
+		return list;
+	}
+	/*VulkanAPIの対応検証機能一覧*/
+	static LayerPropertiesList GetEnumerateInstanceLayer() {
+		uint32_t size = 0;
+		Check(vkEnumerateInstanceLayerProperties(&size, nullptr));
+		LayerPropertiesList list(size);
+		Check(vkEnumerateInstanceLayerProperties(&size, list.data()));
+		return list;
+	}
+	/*VulkanAPIのバージョン*/
+	static uint32_t GetEnumerateInstanceVersion() {
+		uint32_t version;
+		Check(vkEnumerateInstanceVersion(&version));
+		return version;
+	}
+	/*VkAttachmentDescriptionを作成するサンプル*/
+	static VkAttachmentDescription AttachmentDescriptionCreate(const VkFormat format, const VkSampleCountFlagBits sample_bit){
+		auto attachment = VkAttachmentDescription{};
+		/*!@  カラーバッファのアタッチメント情報を設定*/
+		attachment.format = format;
+		attachment.samples = sample_bit;
+		/*!@ 色・深さデータ設定*/
+		attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+		/*!@ ステンシルバッファのデータ設定*/
+		attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		/*!@
+		Vulkan APIのテクスチャとフレームバッファは、
+		VkImageという特定のピクセルフォーマットを持つオブジェクトによって表します。が
+		メモリ内の｛ピクセルのレイアウト｝は画像に対して何を使用としているかによって変わることがあります。
+		*/
+		attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+		return attachment;
+	}
+	/*VkSubpassDependencyを作成するサンプル*/
+	static VkSubpassDependency SubpassDependencyCreate(){
+		auto dependency = VkSubpassDependency{};
+		/*!@依存関係・依存サブパスのインデックスを指定*/
+		dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+		dependency.dstSubpass = 0;
+		/*!@待機操作、操作発生イベントを指定する。*/
+		dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		dependency.srcAccessMask = 0;
+		/*!@カラーアタッチメント出力設定*/
+		dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		dependency.dstAccessMask =
+			VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
+			VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+		return dependency;
+	}
+	/*VkSubpassDescriptionを作成するサンプル*/
+	static VkSubpassDescription SubpassDescriptionCreate(const VkAttachmentReference& colorAttachment, const VkAttachmentReference& depthAttachment){
+		auto description = VkSubpassDescription{};
+		description.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+		description.colorAttachmentCount = 1;
+		description.pColorAttachments = &colorAttachment;
+		description.pDepthStencilAttachment = &depthAttachment;
+		return description;
+	}
+
+	/**
+	* @brief Settings used in the swap chain
+	*/
+	struct SwapchainSupportDetails {
+		VkSurfaceCapabilitiesKHR surfaceCapabilities;
+		SurfaceFormats surfaceFormats;
+		PresentModes presentModes;
+		bool IsComplate() {
+			return !surfaceFormats.empty() && !presentModes.empty();
+		}
+		/*サーフェイスの優先すべきフォーマット情報を返す。*/
+		VkSurfaceFormatKHR chooseSwapSurfaceFormat() {
+			//サーフィス情報に優先フォーマットがない場合
+			if (surfaceFormats.size() == 1 && surfaceFormats[0].format == VK_FORMAT_UNDEFINED)
+				return { VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR };
+
+			//フォーマットに縛りがある場合はリストを探索し、希望の組み合わせが可能かを確認.
+			for (const auto& availableFormat : surfaceFormats)
+			{
+				if (availableFormat.format == VK_FORMAT_B8G8R8A8_UNORM &&
+					availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+					return availableFormat;
+			}
+
+			return surfaceFormats[0];
+		}
+		/*プレゼントモードの優先すべきモードを返す。*/
+		VkPresentModeKHR chooseSwapPresentMode()
+		{
+			for (const auto& present : presentModes)
+			{
+				if (present == VK_PRESENT_MODE_MAILBOX_KHR)return present;
+			}
+			return VK_PRESENT_MODE_FIFO_KHR;
+		}
+		/*範囲データが異常値の場合空を返す。*/
+		VkExtent2D chooseSwapExtent() {
+			if (surfaceCapabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
+				return surfaceCapabilities.currentExtent;
+
+			VkExtent2D extent2d = {};
+			return extent2d;
+		}
+	};
+
+	/* 物理デバイス情報セット	*/
+	struct PhyscialDeivceSet {
+		VkPhysicalDevice device;
+		VkPhysicalDeviceProperties props;
+		VkPhysicalDeviceFeatures features;
+		VkPhysicalDeviceMemoryProperties memory;
+		cppvk::ExtensionPropertiesList extensions;
+		cppvk::LayerPropertiesList validations;
+		cppvk::PhysicalDeviceQueueProps qprops;
+
+		PhyscialDeivceSet(VkPhysicalDevice gpu) :device(gpu) {
+			vkGetPhysicalDeviceProperties(gpu, &props);
+			vkGetPhysicalDeviceFeatures(gpu, &features);
+			vkGetPhysicalDeviceMemoryProperties(gpu, &memory);
+			extensions = GetEnumeratePhysicalDeviceExtensions(gpu);
+			validations = GetEnumerateDeviceLayer(gpu);
+			qprops = GetEnumeratePhysicalDeviceQueueProps(gpu);
+		}
+		/*物理デバイスのキューファミリ一覧
+
+			デバイスキューは、CPUから書き込んだコマンドをGPUへ流すパイプのようなもの。
+			Vulkanでは、処理ごとに区分けされています。
+
+			VK_QUEUE_GRAPHICS_BIT グラフィックス処理⽤のキュー
+			VK_QUEUE_COMPUTE_BIT コンピュート処理⽤のキュー
+			VK_QUEUE_TRANSFER_BIT データ転送処理専⽤のキュー
+			VK_QUEUE_SPARSE_BINDING_BIT スパースメモリ管理処理のキュー
+			VK_QUEUE_PROTECTED_BIT 保護メモリ機能が有効なときに使⽤するキュー
+		*/
+		PhysicalDeviceQueueProps GetEnumeratePhysicalDeviceQueueProps(const VkPhysicalDevice gpu) {
+			assert(gpu != VK_NULL_HANDLE);
+			uint32_t  count = 0;
+			vkGetPhysicalDeviceQueueFamilyProperties(gpu, &count, nullptr);
+			PhysicalDeviceQueueProps queue(count);
+			vkGetPhysicalDeviceQueueFamilyProperties(gpu, &count, queue.data());
+			return queue;
+		}
+		/*物理デバイスの拡張機能一覧*/
+		ExtensionPropertiesList GetEnumeratePhysicalDeviceExtensions(const VkPhysicalDevice gpu) {
+			assert(gpu != VK_NULL_HANDLE);
+			uint32_t size = 0;
+			Check(vkEnumerateDeviceExtensionProperties(gpu, nullptr, &size, nullptr));
+			ExtensionPropertiesList list(size);
+			Check(vkEnumerateDeviceExtensionProperties(gpu, nullptr, &size, list.data()));
+			return list;
+		}
+		/*物理デバイスの検証機能一覧*/
+		LayerPropertiesList GetEnumerateDeviceLayer(const VkPhysicalDevice gpu) {
+			assert(gpu != VK_NULL_HANDLE);
+			uint32_t size = 0;
+			Check(vkEnumerateDeviceLayerProperties(gpu, &size, nullptr));
+			LayerPropertiesList list(size);
+			Check(vkEnumerateDeviceLayerProperties(gpu, &size, list.data()));
+			return list;
+		}
+
+	};
+
 
 	/**
 	 * @brief Object to own custom deleter
 	 * 
-	 * @tparam T 
-	 * @tparam Args 
+	 * @tparam T 管理対象。
+	 * @tparam Args Tの管理に依存するオブジェクト。
 	 */
-	template <typename T,typename... Args>
+	template <typename T, typename... Args>
 	class delete_wrap_ptr {
 		using type = std::remove_pointer_t<T>;
 		using argsType = std::tuple<Args...>;
 		using deleteFunc = std::function<void(type*, Args...)>;
 
 		deleteFunc cleanup;
-		std::tuple<Args...> context;
+		argsType context;
 		type* value;
 	public:
 		delete_wrap_ptr(type* item, deleteFunc func, Args... args)
 			:value(item), cleanup(func), context({ args... }) {}
-		~delete_wrap_ptr() {
-			auto f = [&](Args ...args) {
-				cleanup(value,args...);
-			};
-			std::apply(f,context);
+		virtual ~delete_wrap_ptr() {
+			action(cleanup);
 		}
 		type* get()const noexcept {
 			return value;
@@ -108,355 +307,301 @@ namespace cppvk {
 		type* operator*()const noexcept {
 			return get();
 		}
+		template <class F>
+		constexpr auto action(F&& f) {
+			return std::apply([&](Args ...args) {f(value, args...); }, context);
+		}
 	};
-	
-	/**
-	 * @brief Settings used in the swap chain
-	 * 
-	 */
-	namespace SwapchainSupportDetails {
-		using Type = std::tuple<VkSurfaceCapabilitiesKHR, SurfaceFormats, PresentModes>;
 
-		static VkSurfaceCapabilitiesKHR getSurfaceCapabilities(const Type& data) {
-			return std::get<0>(data);
-		}
-		static SurfaceFormats getSurfaceFormats(const Type& data) {
-			return std::get<1>(data);
-		}
-		static PresentModes getPresentModes(const Type& data) {
-			return std::get<2>(data);
-		}
-		static bool IsComplate(const Type& support) {
-			return !std::get<1>(support).empty() && !std::get<2>(support).empty();
-		}
-	}
-
-	/**
-	 * @brief Object that stores the value of the queue family index for graphics and present mode
-	 * 
-	 */
-	namespace QueueFamilyIndices {
-		using Type = std::tuple<std::optional<uint32_t>, std::optional<uint32_t>>;
-
-		static uint32_t GraphicsFamily(Type& indices) {
-			return std::get<0>(indices).value();
-		}
-		static uint32_t PresentFamily(Type& indices) {
-			return std::get<1>(indices).value();
-		}
-		static bool IsComplate(const Type& indices) {
-			return std::get<0>(indices).has_value() && std::get<1>(indices).has_value();
-		}
-		static bool Match(const Type& indices) {
-			return std::get<0>(indices).value() == std::get<1>(indices).value();
-		}
-	}
-
-	namespace Alg {
-		/* target文字列配列が全てsource配列の要素にあるのかの存在を確認する。存在した場合：真*/
-		template<class _T, template<class... Args>class Container>
-		static bool _ExistSupport(const Names& target, const Container<_T>& source, std::function<const char* (const _T&)> toString) noexcept
+	/* delete_warp_ptr を makeする為 templateで取得し*/
+	template<class Base>
+	class _Instance : public Base {
+	public:
+		using Base::Base;
+		PhysicalDeviceList GetEnumeratePhysicalDevices()
 		{
-			//そもそも比較必要がない場合。
-			if (target.size() == 0) return true;
-
-			bool isfound = false;
-			for (const auto& t : target)/*確認したい項目*/
-			{
-				for (const auto& s : source)/*現環境の機能リストを走査*/
-				{
-					isfound = strcmp(t, toString(s)) == 0;
-					if (isfound)break;
-				}
-				//一致していなかった場合
-				if (!isfound)return false;
-			}
-			//全て走査できた場合
-			return true;
-		}
-
-	}	
-
-	/**
-	 * @brief Vulkan API helper methos
-	 * 
-	 */
-	struct helper {
-		//Enumerator系
-		/*物理デバイスの拡張機能一覧*/
-		static ExtensionPropertiesList GetEnumeratePhysicalDeviceExtensions(const VkPhysicalDevice device) {
-
-			assert(device != VK_NULL_HANDLE);
-
-			uint32_t size = 0;
-			Check(vkEnumerateDeviceExtensionProperties(device, nullptr, &size, nullptr));
-
-			ExtensionPropertiesList list(size);
-			Check(vkEnumerateDeviceExtensionProperties(device, nullptr, &size, list.data()));
-
-			return list;
-		}
-		/*物理デバイスの検証機能一覧*/
-		static LayerPropertiesList GetEnumerateDeviceLayer(const VkPhysicalDevice device) {
-			assert(device != VK_NULL_HANDLE);
-			uint32_t size = 0;
-			Check(vkEnumerateDeviceLayerProperties(device, &size, nullptr));
-
-			LayerPropertiesList list(size);
-			Check(vkEnumerateDeviceLayerProperties(device, &size, list.data()));
-
-			return list;
-		}
-		/*VulkanAPIの対応拡張機能一覧*/
-		static ExtensionPropertiesList GetEnumerateInstanceExtension() {
-			uint32_t size = 0;
-			Check(vkEnumerateInstanceExtensionProperties(nullptr, &size, nullptr));
-
-			ExtensionPropertiesList list(size);
-			Check(vkEnumerateInstanceExtensionProperties(nullptr, &size, list.data()));
-			return list;
-		}
-		/*VulkanAPIの対応検証機能一覧*/
-		static LayerPropertiesList GetEnumerateInstanceLayer() {
-			uint32_t size = 0;
-			Check(vkEnumerateInstanceLayerProperties(&size, nullptr));
-			LayerPropertiesList list(size);
-			Check(vkEnumerateInstanceLayerProperties(&size, list.data()));
-			return list;
-		}
-		/*VulkanAPIのバージョン*/
-		static uint32_t GetEnumerateInstanceVersion() {
-			uint32_t version;
-			Check(vkEnumerateInstanceVersion(&version));
-			return version;
-		}
-		/*物理デバイスの一覧*/
-		static PhysicalDeviceList GetEnumeratePhysicalDevices(const VkInstance instance)
-		{
-			assert(instance != VK_NULL_HANDLE);
+			assert(**this != VK_NULL_HANDLE);
 			uint32_t size;
-			Check(vkEnumeratePhysicalDevices(instance, &size, nullptr));
-
+			Check(vkEnumeratePhysicalDevices(**this, &size, nullptr));
 			PhysicalDeviceList list(size);
-			Check(vkEnumeratePhysicalDevices(instance, &size, list.data()));
-
+			Check(vkEnumeratePhysicalDevices(**this, &size, list.data()));
 			return list;
 		}
-		/*物理デバイスのグループ機能一覧*/
-		static PhysicalDeviceGroupList GetEnumeratePhysicalDeviceGroupsKHR(const VkInstance instance) {
-			assert(instance != VK_NULL_HANDLE);
+		PhysicalDeviceGroupList GetEnumeratePhysicalDeviceGroupsKHR() {
+			assert(**this != VK_NULL_HANDLE);
 			uint32_t size = 0;
-			Check(vkEnumeratePhysicalDeviceGroupsKHR(instance, &size, nullptr));
+			Check(vkEnumeratePhysicalDeviceGroupsKHR(**this, &size, nullptr));
 			PhysicalDeviceGroupList list(size);
-			Check(vkEnumeratePhysicalDeviceGroupsKHR(instance, &size, list.data()));
+			Check(vkEnumeratePhysicalDeviceGroupsKHR(**this, &size, list.data()));
 			return list;
 		}
-		/*物理デバイスのグループ機能一覧*/
-		static PhysicalDeviceGroupList GetEnumeratePhysicalDeviceGroups(const VkInstance instance) {
-			assert(instance != VK_NULL_HANDLE);
+		PhysicalDeviceGroupList GetEnumeratePhysicalDeviceGroups() {
+			assert(**this != VK_NULL_HANDLE);
 			uint32_t size = 0;
-			Check(vkEnumeratePhysicalDeviceGroups(instance, &size, nullptr));
+			Check(vkEnumeratePhysicalDeviceGroups(**this, &size, nullptr));
 			PhysicalDeviceGroupList list(size);
-			Check(vkEnumeratePhysicalDeviceGroups(instance, &size, list.data()));
+			Check(vkEnumeratePhysicalDeviceGroups(**this, &size, list.data()));
 			return list;
-		}
-		/*物理デバイスのキューファミリ一覧*/
-		static PhysicalDeviceQueueProps GetEnumeratePhysicalDeviceQueueProps(const VkPhysicalDevice gpu) noexcept
-		{
-			assert(gpu != VK_NULL_HANDLE);
-			uint32_t  count = 0;
-			vkGetPhysicalDeviceQueueFamilyProperties(gpu, &count, nullptr);
-
-			PhysicalDeviceQueueProps queue(count);
-			vkGetPhysicalDeviceQueueFamilyProperties(gpu, &count, queue.data());
-
-			return queue;
-		}
-		/*サーフェイスの機能取得*/
-		static VkSurfaceCapabilitiesKHR GetSurfaceCapabilities(VkPhysicalDevice gpu, VkSurfaceKHR surface)
-		{
-			VkSurfaceCapabilitiesKHR temp{};
-			Check(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(gpu, surface, &temp));
-			return temp;
-		}
-		/*物理デバイスのサーフェイスが利用可能なフォーマット*/
-		static SurfaceFormats GetEnumerateSurfaceFormats(VkPhysicalDevice gpu, VkSurfaceKHR surface)
-		{
-			uint32_t fcount;
-			vkGetPhysicalDeviceSurfaceFormatsKHR(gpu, surface, &fcount, nullptr);
-			SurfaceFormats formats(fcount);
-			vkGetPhysicalDeviceSurfaceFormatsKHR(gpu, surface, &fcount, formats.data());
-			return formats;
-		}
-		/*物理デバイスのサーフェイスが利用可能なプレゼントモード*/
-		static PresentModes GetEnumerateSurfacePresentmodes(VkPhysicalDevice gpu, VkSurfaceKHR surface)
-		{
-			uint32_t pcount;
-			vkGetPhysicalDeviceSurfacePresentModesKHR(gpu, surface, &pcount, nullptr);
-			PresentModes presentModes(pcount);
-			vkGetPhysicalDeviceSurfacePresentModesKHR(gpu, surface, &pcount, presentModes.data());
-			return presentModes;
-		}
-		//追加サポート機能
-		static SwapchainSupportDetails::Type GetSwapchainSupport(VkPhysicalDevice gpu, VkSurfaceKHR surface)
-		{
-			VkSurfaceCapabilitiesKHR capabilites{};
-			//基本的なサーフェイス情報取得
-			vkGetPhysicalDeviceSurfaceCapabilitiesKHR(gpu, surface, &capabilites);
-			//サーフェイスフォーマット情報取得
-			auto formats = GetEnumerateSurfaceFormats(gpu, surface);
-			//プレゼンテーション情報取得
-			auto presentModes = GetEnumerateSurfacePresentmodes(gpu, surface);
-			return { capabilites,formats,presentModes };
-		}
-		/*キューファミリのインデックスを返す。*/
-		static QueueFamilyIndices::Type FindQueueFamilyIndices(VkPhysicalDevice gpu,VkSurfaceKHR surface)
-		{
-			assert(gpu != VK_NULL_HANDLE);
-			assert(surface != VK_NULL_HANDLE);
-
-			VkBool32 presentSupport = false;
-			auto queues = GetEnumeratePhysicalDeviceQueueProps(gpu);
-
-			int i = 0;
-			std::optional<uint32_t> graphicsFamily , presentFamily;
-			//プレゼンテーション探索対応。
-			for (const auto& f : queues)
-			{
-				presentSupport = false;
-				if(f.queueCount <= 0) continue;
-				if (f.queueFlags & VK_QUEUE_GRAPHICS_BIT)graphicsFamily = i;
-				
-				Check(vkGetPhysicalDeviceSurfaceSupportKHR(gpu, i, surface, &presentSupport));
-				if (presentSupport)presentFamily = i;
-				if (QueueFamilyIndices::IsComplate({ graphicsFamily,presentSupport }))break;
-				i++;
-			}
-			return {graphicsFamily,presentSupport};
-		}
-		/*デバイスキューのクリエイトオブジェクト*/
-		static VkDeviceQueueCreateInfo QueueCreateInfo(const uint32_t familyIndex, const uint32_t count = 1, const float priority = 1.0f) {
-			assert(count > 0);
-			VkDeviceQueueCreateInfo info{};
-			//info.sType = VK_CREATE_TYPE(DEVICE_QUEUE);
-			info.flags = 0;
-			info.pNext = VK_NULL_HANDLE;
-			info.queueCount = count;
-			info.queueFamilyIndex = familyIndex;
-			info.pQueuePriorities = &priority;
-			return info;
-		}
-		/* source配列にtarget名が全て存在するか。 */
-		static bool ExistSupport(const Names& target, const ExtensionPropertiesList& source) {
-			return Alg::_ExistSupport<VkExtensionProperties,std::vector>(target, source, [](VkExtensionProperties prop) {return prop.extensionName;});
-		}
-		/* source配列にtarget名が全て存在するか。 */
-		static bool ExistSupport(const Names& target, const LayerPropertiesList& source) {
-			return Alg::_ExistSupport<VkLayerProperties, std::vector>(target, source, [](VkLayerProperties prop) {return prop.layerName;});
 		}
 		/*削除処理をする必要がない為そのままデバイスポインタを返す。*/
-		static VkPhysicalDevice chooseGpu(InstancePtr instance, ChoosePhysicalDeviceFuncInstanceBuilder isSuitable) {
-
-			VkPhysicalDeviceProperties dprop; //名前,種類,サポート,バージョンなど
-			VkPhysicalDeviceFeatures   dfeat;//テクスチャ圧縮,64ビットfloat,マルチビューポートレンダリングなどのオプション
-			
-			PhysicalDeviceList gpus = GetEnumeratePhysicalDevices(**instance);
+		PhyscialDeivceSet ChooseGpu(ChoosePhysicalDeviceFuncInstanceBuilder isSuitable) {
+	
+			PhysicalDeviceList gpus = GetEnumeratePhysicalDevices();
+			if(gpus.empty())
+				throw std::runtime_error("failed to find GPUs with vulkan support!");
 
 			for (auto&& gpu : gpus) {
-				vkGetPhysicalDeviceProperties(gpu, &dprop);
-				vkGetPhysicalDeviceFeatures(gpu, &dfeat);
+				auto dev_set = PhyscialDeivceSet(gpu);
 
 				/*最適条件ではない場合繰り返す。*/
-				if (!isSuitable(dprop, dfeat))	continue;
+				if (!isSuitable(dev_set))	continue;
 
-				return gpu;
+				return PhyscialDeivceSet(gpu);
 			}
 			return VK_NULL_HANDLE;
 		}
+
+		PFN_vkCreateDebugReportCallbackEXT GetCreateDebugReportCallbackEXT(){
+			return GetVkInstanceProcAddr(**this, vkCreateDebugReportCallbackEXT);
+		}
+
+		PFN_vkDebugReportMessageEXT GetDebugReportMessageEXT(){
+			return GetVkInstanceProcAddr(**this, vkDebugReportMessageEXT);
+		}
+
+		PFN_vkDestroyDebugReportCallbackEXT GetkDestroyDebugReportCallbackEXT(){
+			return GetVkInstanceProcAddr(**this, vkDestroyDebugReportCallbackEXT);
+		}
+	};
+	using Instance = _Instance<delete_wrap_ptr<VkInstance>>;
+	using InstancePtr = shared_pointer <Instance>;
+
+	template<class Base>
+	class _Surface : public Base {
+	public:
+		using  Base::Base;
+		/*
+		サーフェイスの能力値の取得
+		*/
+		VkSurfaceCapabilitiesKHR GetSurfaceCapabilities(VkPhysicalDevice gpu)
+		{
+			VkSurfaceCapabilitiesKHR temp{};
+			Check(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(gpu, **this, &temp));
+			return temp;
+		}
+		/*
+		物理デバイスのサーフェイスが利用可能な表示用フォーマット
+		*/
+		SurfaceFormats GetEnumerateSurfaceFormats(VkPhysicalDevice gpu)
+		{
+			uint32_t fcount;
+			vkGetPhysicalDeviceSurfaceFormatsKHR(gpu, **this, &fcount, nullptr);
+			SurfaceFormats formats(fcount);
+			vkGetPhysicalDeviceSurfaceFormatsKHR(gpu, **this, &fcount, formats.data());
+			return formats;
+		}
+		/*
+		物理デバイスのサーフェイスが利用可能なプレゼントモード
+		表・裏画面の切り替え操作(Presentという)を、どのような方式で行うか調べる。
+		*/
+		PresentModes GetEnumerateSurfacePresentmodes(VkPhysicalDevice gpu)
+		{
+			uint32_t pcount;
+			vkGetPhysicalDeviceSurfacePresentModesKHR(gpu, **this, &pcount, nullptr);
+			PresentModes presentModes(pcount);
+			vkGetPhysicalDeviceSurfacePresentModesKHR(gpu, **this, &pcount, presentModes.data());
+			return presentModes;
+		}
+		/*このデバイスのサーフェイス機能がサポートされているのか確認。*/
+		bool GetPhysicalDevicceSurfaceSupportKHR(VkPhysicalDevice gpu, const uint32_t index) {
+			VkBool32 isSupport = false;
+			Check(vkGetPhysicalDeviceSurfaceSupportKHR(gpu, index, **this, &isSupport));
+			return isSupport == VK_TRUE;
+		}
+	};
+	using Surface = _Surface<delete_wrap_ptr< VkSurfaceKHR, InstancePtr>>;
+	using SurfacePtr = shared_pointer <Surface>;
+
+	template<class Base>
+	class _Device : public Base {
+	public:
+		using Base::Base;
 		/*削除処理をする必要がない為そのままキューポインタを返す。*/
-		static VkQueue chooseQueue(DevicePtr device, uint32_t family, uint32_t index) {
+		VkQueue getQueue(const uint32_t& family,const uint32_t& index) {
 			VkQueue queue;
-			vkGetDeviceQueue(**device, family, index, &queue);
+			vkGetDeviceQueue(**this, family, index, &queue);
 			return queue;
 		}
-		/*サーフェイスの優先すべきフォーマット情報を返す。*/
-		static VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats) {
-			//サーフィス情報に優先フォーマットがない場合
-			if (availableFormats.size() == 1 && availableFormats[0].format == VK_FORMAT_UNDEFINED)
-				return { VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR };
+	}; 
+	using Device = _Device<delete_wrap_ptr<VkDevice>>;
+	using DevicePtr = shared_pointer<Device>;
 
-			//フォーマットに縛りがある場合はリストを探索し、希望の組み合わせが可能かを確認.
-			for (const auto& availableFormat : availableFormats)
-			{
-				if (availableFormat.format == VK_FORMAT_B8G8R8A8_UNORM &&
-					availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
-					return availableFormat;
-			}
+	using PipelinePtr = shared_pointer<delete_wrap_ptr<VkPipeline, DevicePtr>>;
+	using FramebufferPtr = shared_pointer<delete_wrap_ptr<VkFramebuffer, DevicePtr>>;
+	using PipelineLayoutPtr = shared_pointer<delete_wrap_ptr<VkPipelineLayout, DevicePtr>>;
+	using ShaderModulePtr = shared_pointer<delete_wrap_ptr<VkShaderModule, DevicePtr>>;
+	using DescriptorPoolPtr = shared_pointer<delete_wrap_ptr<VkDescriptorPool, DevicePtr>>;
+	using FencePtr = shared_pointer<delete_wrap_ptr<VkFence, DevicePtr>>;
+	using SemaphorePtr = shared_pointer<delete_wrap_ptr<VkSemaphore, DevicePtr>>;
+	using EventPtr = shared_pointer<delete_wrap_ptr<VkEvent, DevicePtr>>;
+	using DebugMessengerPtr = shared_pointer < delete_wrap_ptr< VkDebugUtilsMessengerEXT, InstancePtr>>;
+	using ImageViewPtr = shared_pointer<delete_wrap_ptr<VkImageView, DevicePtr>> ;
 
-			return availableFormats[0];
+	template<class Base>
+	class _Image : public Base {
+	public:
+		using Base::Base;
+		VkMemoryRequirements GetMemoryRequirements() {
+			VkMemoryRequirements info = {};
+			std::function<void(VkImage, DevicePtr)> action = [&info](VkImage image, DevicePtr device) {
+				vkGetImageMemoryRequirements(**device, image, &info);
+			};
+			this->action(action);
+			return info;
 		}
-		/*サーフェイスの優先すべきフォーマット情報を返す。*/
-		static VkSurfaceFormatKHR chooseSwapSurfaceFormat(SwapchainSupportDetails::Type& support) {
-			return chooseSwapSurfaceFormat(SwapchainSupportDetails::getSurfaceFormats(support));
-		}
-		/*プレゼントモードの優先すべきモードを返す。*/
-		static VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes)
-		{
-			for (const auto& present : availablePresentModes)
-			{
-				if (present == VK_PRESENT_MODE_MAILBOX_KHR)return present;
-			}
-			return VK_PRESENT_MODE_FIFO_KHR;
-		}
-		/*プレゼントモードの優先すべきモードを返す。*/
-		static VkPresentModeKHR chooseSwapPresentMode(SwapchainSupportDetails::Type& support) {
-			return chooseSwapPresentMode(SwapchainSupportDetails::getPresentModes(support));
-		}
-		/*範囲データが異常値の場合空を返す。*/
-		static VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilites) {
-			if (capabilites.currentExtent.width != std::numeric_limits<uint32_t>::max())return capabilites.currentExtent;
-
-			VkExtent2D extent2d = {};
-			return extent2d;
-		}
-		/*範囲データが異常値の場合空を返す。*/
-		static VkExtent2D chooseSwapExtent(SwapchainSupportDetails::Type& support) {
-			return chooseSwapExtent(SwapchainSupportDetails::getSurfaceCapabilities(support));
-		}
-		/*スワップチェーンの画像取得 */
-		static ImageList GetSwapchainImage(VkDevice device, VkSwapchainKHR swapchain) noexcept{
-			uint32_t count;
-			ImageList images;
-
-			if(device == VK_NULL_HANDLE || swapchain == VK_NULL_HANDLE)
-				return images;
-
-			vkGetSwapchainImagesKHR(device, swapchain, &count, nullptr);
-
-			images.resize(count);
-			vkGetSwapchainImagesKHR(device, swapchain, &count, images.data());
-
-			return images;
-		}
-
-		static Code readFile(const std::string& filePath) {
-			std::ifstream file(filePath, std::ios::ate | std::ios::binary);
-
-			if (!file.is_open()) 
-				throw std::runtime_error("failed to open file!");
-			
-			auto fileSize = (size_t) file.tellg();
-			Code buffer(fileSize);
-
-			file.seekg(0);
-			file.read(buffer.data(), fileSize);
-			file.close();
-
-			return buffer;
-		}
-
 	};
-	
+	using Image = _Image<delete_wrap_ptr<VkImage, DevicePtr>>;
+	using ImagePtr = shared_pointer<Image>;
+
+	template <class Base>
+	class _Renderpass : public Base {
+	public:
+		using Base::Base;
+		//virtual VkRenderPassBeginInfo ToBeginInfo(FramebufferPtr framebuffer) {
+		//	//描画の為、レンダーパスを開始する。
+		//	VkRenderPassBeginInfo info = {};
+		//	info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+		//	info.renderPass = **this;
+		//	info.framebuffer = **framebuffer;
+		//	//レンダー領域のサイズを定義　(シェーダのロードとストアが行われる場所を定義)
+		//	info.renderArea.offset = { 0,0 };
+		//	info.renderArea.extent = imageManager.extent;
+		//	info.clearValueCount = clearColors.size();
+		//	info.pClearValues = clearColors.data();
+		//	return info;
+		//}
+	};
+	using Renderpass = _Renderpass<delete_wrap_ptr<VkRenderPass, DevicePtr>>;
+	using RenderpassPtr = shared_pointer<Renderpass>;
+
+	template<class Base>
+	class _CommandPool : public Base {
+	public:
+		using Base::Base;
+		void Trim(VkCommandPoolTrimFlags flags) {
+			this->action([&flags](VkCommandPool pool, DevicePtr device) {
+				vkTrimCommandPool(**device, pool, flags);
+			});
+		}
+		void Reset(VkCommandPoolResetFlags flags) {
+			this->action([&flags](VkCommandPool pool, DevicePtr device) {
+				auto err = vkResetCommandPool(**device, pool, flags);
+				Check(err); 
+			});
+		}
+	};	
+	using CommandPool = _CommandPool <delete_wrap_ptr<VkCommandPool, DevicePtr>>;
+	using CommandPoolPtr = shared_pointer<CommandPool>;
+
+	template<class Base = delete_wrap_ptr<VkCommandBuffer, DevicePtr>>
+	class CommandBuffer : public Base {
+	public:
+		using Base::Base;
+		void Reset(VkCommandBufferResetFlags flags) {
+			Check(vkResetCommandBuffer(**this, flags));
+		}
+		void Begin(VkCommandBufferUsageFlags flags) {
+			/*コマンドバッファの記録を開始*/
+			VkCommandBufferBeginInfo beginInfo = {};
+			beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+			beginInfo.flags = flags;// VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+			/*コピー操作の実行が終了するまで、描画コマンドバッファを使用する。*/
+			Check(vkBeginCommandBuffer(**this, &beginInfo));
+		}
+		void End() {
+			Check(vkEndCommandBuffer(**this));
+		}
+		void BeginRenderPass(VkRenderPassBeginInfo& info) {
+			//レンダーパスを開始。
+			vkCmdBeginRenderPass(**this, &info, VK_SUBPASS_CONTENTS_INLINE);
+		}
+	};
+
+	template<class Base>
+	class _Swapchain : Base{
+	public:
+		using Base::Base;
+		std::vector<ImagePtr>GetImages() {
+			std::vector<ImagePtr> s_images;
+
+			this->action([&s_images](VkSwapchainKHR swapchain, DevicePtr device) {
+				std::vector< VkImage> images;
+				uint32_t count;
+
+				vkGetSwapchainImagesKHR(**device, swapchain, &count, nullptr);
+				images.resize(count);
+				vkGetSwapchainImagesKHR(**device, swapchain, &count, images.data());
+
+				s_images.resize(count);
+				for(size_t i = 0; i < count; ++i) {
+					//スワップチェーンが破棄されると自動的にクリーンアップされる為、クリーンアップコードを追加する必要はありません。
+					s_images[i] = std::make_shared<Image>(images[i],	[](VkImage image, DevicePtr device) {}, device);
+				}
+			});
+
+			return s_images;
+		}
+	};
+	using Swapchain = _Swapchain<delete_wrap_ptr<VkSwapchainKHR, DevicePtr>>;
+	using SwapchainPtr = shared_pointer<Swapchain>;
+
+	class DeviceMemory {
+		DevicePtr device;
+		VkDeviceMemory handle;
+
+	public:
+
+		DeviceMemory(DevicePtr device, const uint32_t typeIndex, const VkDeviceSize size):device(device) {
+			//メモリをどのようなサイズで割り当てるかといった情報
+			VkMemoryAllocateInfo info{};
+			info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+			info.pNext = nullptr;
+			info.allocationSize = size;
+			/*どのメモリ位置でデータ(リソース)を割り当てるかの設定
+			このインデックス値は、vkGetPhysicalDeviceMemoryProperties を使用し求めることができる 
+			VkPhysicalDeviceMemoryPropertiesのmemoryTypesはpropertyFlagsでメモリの種別についての情報がセットされている。
+			*/
+			info.memoryTypeIndex = typeIndex;
+
+			//管理用のハンドル
+			handle = VK_NULL_HANDLE;
+			auto err = vkAllocateMemory(**device, &info, VK_NULL_HANDLE, &handle);
+			Check(err);
+		}
+
+		~DeviceMemory() {
+			vkFreeMemory(**device, handle, VK_NULL_HANDLE);
+		}
+
+		template<VkDeviceSize offset = 0>
+		void bind(ImagePtr image) {
+			auto err = vkBindImageMemory(**device, **image, handle, offset);
+			Check(err);
+		}
+
+		template<class DataType, VkDeviceSize offset, VkDeviceSize size, VkMemoryMapFlags flags>
+		void map(DataType* data) {
+			auto err = vkMapMemory(**device, handle, offset, size, flags, data);
+			Check(err);
+		}
+
+		void unmap() {
+			vkUnmapMemory(**device, handle);
+		}
+	};
+	using DeviceMemoryPtr = shared_pointer<DeviceMemory>;
+
+
 	/**
 	 * @brief 
 	 * 
@@ -573,7 +718,7 @@ namespace cppvk {
 				VkInstance instance;
 				auto err = vkCreateInstance(&info, VK_NULL_HANDLE, &instance);
 				Check(err);
-				return std::make_shared<delete_wrap_ptr<VkInstance>>(instance, [](VkInstance ptr) {
+				return std::make_shared<Instance>(instance, [](VkInstance ptr) {
 					std::cout << STR(vkDestroyInstance) << std::endl;
 					vkDestroyInstance(ptr, VK_NULL_HANDLE);
 					});
@@ -743,7 +888,7 @@ namespace cppvk {
 			auto err = vkCreateWin32SurfaceKHR(**instance, &info, VK_NULL_HANDLE, &surface);
 			Check(err);
 
-			return std::make_shared<  delete_wrap_ptr < VkSurfaceKHR , InstancePtr> >( 
+			return std::make_shared< Surface>( 
 				surface,
 				[](VkSurfaceKHR ptr, InstancePtr ins) {
 					std::cout << STR(vkDestroySurfaceKHR) << std::endl;
@@ -790,44 +935,6 @@ namespace cppvk {
 			/**
 			 * @brief 
 			 * 
-			 */
-			class DeviceQueueSetter {
-				VkDeviceQueueCreateInfo &info;
-			public:
-				DeviceQueueSetter(VkDeviceQueueCreateInfo& i):info(i) {
-					info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-					info.pNext = NULL;
-					info.flags = 0;
-					info.queueFamilyIndex = 0;
-					info.queueCount = 0;
-				}
-				~DeviceQueueSetter() {}
-				/**
-				 * @brief queueFamilyIndex is an unsigned integer indicating the index of the queue family to create on this device. This index corresponds to the index of an element of the pQueueFamilyProperties array that was returned by vkGetPhysicalDeviceQueueFamilyProperties
-				 *
-				 * @param index
-				 * @return DeviceQueueSetter
-				 */
-				DeviceQueueSetter familyIndices(const uint32_t index) {
-					info.queueFamilyIndex = index;
-					return *this;
-				}
-				/**
-				 * @brief pQueuePriorities is an array of queueCount normalized floating point values, specifying priorities of work that will be submitted to each created queue. See Queue Priority for more information.
-				 * lvalue only
-				 * @param prior
-				 * @return DeviceQueueSetter
-				 */
-				DeviceQueueSetter priorities(Priorities& prior) {
-					info.queueCount = static_cast<uint32_t>(prior.size());
-					if (!prior.empty())info.pQueuePriorities = prior.data();
-					return *this;
-				}
-			};
-
-			/**
-			 * @brief 
-			 * 
 			 * @param layers 
 			 * @return DeviceBuilder 
 			 */
@@ -866,10 +973,15 @@ namespace cppvk {
 			 * @param createFunc 
 			 * @return DeviceBuilder 
 			 */
-			DeviceBuilder addQueueInfo(const std::function<void(DeviceQueueSetter&)>& createFunc) {
+			DeviceBuilder addQueueInfo(Priorities& prior,const uint32_t index) {
 				auto item = VkDeviceQueueCreateInfo{};
-				auto op = DeviceQueueSetter(item);
-				createFunc(op);
+				item.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+				item.pNext = NULL;
+				item.flags = 0;
+				item.queueFamilyIndex = index;
+				item.queueCount = static_cast<uint32_t>(prior.size());
+				if (!prior.empty())
+					item.pQueuePriorities = prior.data();
 				queueInfos.push_back(item);
 				return *this;
 			}
@@ -890,7 +1002,7 @@ namespace cppvk {
 				auto err = vkCreateDevice(selectDevice, &info,VK_NULL_HANDLE,&logicalDevice);
 				Check(err);
 
-				return std::make_shared<delete_wrap_ptr<VkDevice>>( logicalDevice, [](VkDevice ptr) {
+				return std::make_shared<Device>( logicalDevice, [](VkDevice ptr) {
 					std::cout << STR(vkDestroyDevice) << std::endl;
 					vkDestroyDevice(ptr,VK_NULL_HANDLE);
 				} );
@@ -911,6 +1023,7 @@ namespace cppvk {
 		 * @param pointer 
 		 */
 		SwapchainBuilder(DevicePtr pointer):logicalDevice(pointer) {
+			info = {};
 			info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
 			info.pNext = VK_NULL_HANDLE;
 			info.flags = 0;
@@ -1052,6 +1165,13 @@ namespace cppvk {
 
 		/**
 		 * @brief 
+			 IMMEDIATE_KHR : 垂直同期なしで即時に切り替えます。
+			MAILBOX_KHR : 垂直同期ありで切り替えます。待ちキューが⼀杯の時、画像は置き換えとなります。
+			FIFO_KHR : 垂直同期ありで切り替えます。待ちキューの最後に画像が追加となります。
+			FIFO_RELAXED_KHR : 基本は垂直同期ありで切り替えですが、画像が間に合わない場合は要求が来た時点で即時切り替えになります。
+			HARED_DEMAND_REFRESH_KHR:  共有表⽰可能イメージを使⽤して更新要求を出すことが出来ます。プレゼンテーションエンジンは任意の時点で処理を⾏い、ティアリングを起こすことがあります。
+			SHARED_CONTINUOUS_REFRESH_KHR : 共有表⽰可能イメージを使⽤しプレゼンテーションエンジンが定期的に画⾯を更新することを指定します。但しティアリングを起こすことがあります。
+
 		 * 
 		 * @param flag 
 		 * @return SwapchainBuilder 
@@ -1108,11 +1228,17 @@ namespace cppvk {
 		 * @return SwapchainPtr 
 		 */
 		SwapchainPtr build() {
+
+			if (info.imageSharingMode == VK_SHARING_MODE_CONCURRENT)	{
+				assert(info.pQueueFamilyIndices != nullptr);
+				assert(info.queueFamilyIndexCount > 1);
+			}
+
 			VkSwapchainKHR swapchain = VK_NULL_HANDLE;
 			auto err = vkCreateSwapchainKHR(**logicalDevice, &info, VK_NULL_HANDLE, &swapchain);
 			Check(err);
 
-			return std::make_shared<delete_wrap_ptr<VkSwapchainKHR,DevicePtr>>(
+			return std::make_shared<Swapchain>(
 				swapchain,
 				[](VkSwapchainKHR ptr,DevicePtr device) {
 					std::cout << STR(vkDestroySwapchainKHR) << std::endl;
@@ -1123,6 +1249,88 @@ namespace cppvk {
 	};//SwapchainBuilder
 
 	/**
+	 * @brief
+	 *
+	 */
+	class ImageBuilder {
+		VkImageCreateInfo info;
+		DevicePtr logicalDevice;
+	public:
+		ImageBuilder(DevicePtr device): logicalDevice(device) {
+			info = VkImageCreateInfo{};
+			info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+			info.pNext = nullptr;
+			info.flags = 0;
+		}
+		static ImageBuilder get(DevicePtr device) {
+			return ImageBuilder(device);
+		}
+		ImageBuilder flags(VkImageCreateFlags flag) {
+			info.flags = flag;
+			return *this;
+		}
+		ImageBuilder imageType(VkImageType type) {
+			info.imageType = type;
+			return *this;
+		}
+		ImageBuilder format(VkFormat format) {
+			info.format = format;
+			return *this;
+		}
+		ImageBuilder extent(VkExtent3D extent) {
+			info.extent = extent;
+			return *this;
+		}
+		ImageBuilder mipLevels(const uint32_t& levels) {
+			info.mipLevels = levels;
+			return *this;
+		}
+		ImageBuilder arrayLayers(const uint32_t& layers) {
+			info.arrayLayers = layers;
+			return *this;
+		}
+		ImageBuilder samples(VkSampleCountFlagBits bits) {
+			info.samples = bits;
+			return *this;
+		}
+		ImageBuilder tiling(VkImageTiling tiling) {
+			info.tiling = tiling;
+			return *this;
+		}
+		ImageBuilder usage(const VkImageUsageFlags flags) {
+			info.usage = flags;
+			return *this;
+		}
+		ImageBuilder sharingMode(const VkSharingMode mode) {
+			info.sharingMode = mode;
+			return *this;
+		}
+		ImageBuilder queueFamilyIndices(const cppvk::Indexs& familyInices) {
+			info.queueFamilyIndexCount = static_cast<uint32_t>(familyInices.size());
+			info.pQueueFamilyIndices = familyInices.data();
+			return *this;
+		}
+		ImageBuilder initialLayout(const VkImageLayout layout) {
+			info.initialLayout = layout;
+			return *this;
+		}
+		ImagePtr build() {
+			VkImage image = VK_NULL_HANDLE;
+			auto err = vkCreateImage(**logicalDevice, &info, VK_NULL_HANDLE, &image);
+			Check(err);
+
+			return std::make_shared<Image>
+				(image, 
+				[](VkImage ptr, DevicePtr device) {
+					std::cout << STR(vkDestroyImage) << std::endl;
+					vkDestroyImage(**device, ptr, VK_NULL_HANDLE);
+				},  logicalDevice);
+
+		}
+
+	};
+
+	/**
 	 * @brief 
 	 * 
 	 */
@@ -1130,8 +1338,8 @@ namespace cppvk {
 		VkRenderPassCreateInfo info = {};
 		DevicePtr logicalDevice;
 		std::vector<VkAttachmentDescription> attachments;
-		std::vector<VkSubpassDescription> description;
-		std::vector<VkSubpassDependency> dependency;
+		std::vector<VkSubpassDescription> descriptions;
+		std::vector<VkSubpassDependency> dependencys;
 
 	public:
 		RenderpassBuilder(DevicePtr pointer):logicalDevice(pointer){
@@ -1164,8 +1372,13 @@ namespace cppvk {
 		 * @param createFunc 
 		 * @return RenderpassBuilder 
 		 */
-		RenderpassBuilder addAttachments(const std::function<void(VkAttachmentDescription&)> createFunc){
-			add<VkAttachmentDescription>(attachments,createFunc);
+		RenderpassBuilder addAttachments(const VkAttachmentDescription& attachment){
+			attachments.push_back(attachment);
+			return *this;
+		}
+
+		RenderpassBuilder addAttachments(VkAttachmentDescription&& attachment){
+			attachments.push_back(attachment);
 			return *this;
 		}
 
@@ -1175,19 +1388,29 @@ namespace cppvk {
 		 * @param 
 		 * @return RenderpassBuilder 
 		 */
-		RenderpassBuilder addSubpassDescription(const std::function<void(VkSubpassDescription&)> createFunc){
-			add<VkSubpassDescription>(description,createFunc);
+		RenderpassBuilder addSubpassDescription(const VkSubpassDescription& description){
+			descriptions.push_back(description);
+			return *this;
+		}
+
+		RenderpassBuilder addSubpassDescription(VkSubpassDescription&& description){
+			descriptions.push_back(description);
 			return *this;
 		}
 
 		/**
-		 * @brief 
+		 * @brief
 		 * 
 		 * @param 
 		 * @return RenderpassBuilder 
 		 */
-		RenderpassBuilder addSubpassDependency(const std::function<void(VkSubpassDependency&)> createFunc){
-			add<VkSubpassDependency>(dependency,createFunc);
+		RenderpassBuilder addSubpassDependency(const VkSubpassDependency& dependency){
+			dependencys.push_back(dependency);
+			return *this;
+		}
+
+		RenderpassBuilder addSubpassDependency(VkSubpassDependency&& dependency){
+			dependencys.push_back(dependency);
 			return *this;
 		}
 
@@ -1202,19 +1425,19 @@ namespace cppvk {
 			if(!attachments.empty())
 				info.pAttachments = attachments.data();
 
-			info.subpassCount = static_cast<uint32_t>(description.size());
-			if (!description.empty())
-				info.pSubpasses = description.data();
+			info.subpassCount = static_cast<uint32_t>(descriptions.size());
+			if (!descriptions.empty())
+				info.pSubpasses = descriptions.data();
 
-			info.dependencyCount = static_cast<uint32_t>(dependency.size());
-			if (!dependency.empty())
-				info.pDependencies = dependency.data();
+			info.dependencyCount = static_cast<uint32_t>(dependencys.size());
+			if (!dependencys.empty())
+				info.pDependencies = dependencys.data();
 
 			VkRenderPass renderPass = VK_NULL_HANDLE;
 			auto err = vkCreateRenderPass(**logicalDevice,&info,VK_NULL_HANDLE,&renderPass);
 			Check(err);
 
-			return  std::make_shared<delete_wrap_ptr<VkRenderPass, DevicePtr>>(
+			return  std::make_shared<Renderpass>(
 				renderPass,
 				[](VkRenderPass ptr, DevicePtr device) {
 					std::cout << STR(vkDestroyRenderPass) << std::endl;
@@ -1226,6 +1449,10 @@ namespace cppvk {
 
 	};//RenderpassBuilder
 
+	/**
+	 * @brief
+	 *
+	 */
 	class CommandPoolBuilder{
 		VkCommandPoolCreateInfo info = {};
 		DevicePtr logicalDevice;
@@ -1240,6 +1467,16 @@ namespace cppvk {
 			return CommandPoolBuilder(pointer);
 		}
 
+		/*
+		TRANSIENT_BIT : 短命なコマンドバッファ⽤のプール作成時に使⽤します。
+		RESET_COMMAND_BUFFER_BIT : 個別にリセット可能なコマンド⽤プール作成時に使⽤します。
+		PROTECTED_BIT : 保護されたコマンドバッファ⽤で使⽤します（保護メモリ機能が有効の場合）。
+		*/
+		CommandPoolBuilder flags(const VkCommandPoolCreateFlags flag) {
+			info.flags = flag;
+			return *this;
+		}
+
 		CommandPoolBuilder queueFamilyIndices(const uint32_t& value){
 			info.queueFamilyIndex = value;
 			return *this;
@@ -1250,7 +1487,7 @@ namespace cppvk {
 			auto err = vkCreateCommandPool(**logicalDevice,&info,VK_NULL_HANDLE,&cmdPool);
 			Check(err);
 
-			return std::make_shared<delete_wrap_ptr<VkCommandPool, DevicePtr>>(
+			return std::make_shared<CommandPool>(
 				cmdPool,
 				[](VkCommandPool ptr, DevicePtr device) {
 					std::cout << STR(vkDestroyCommandPool) << std::endl;
@@ -1260,6 +1497,10 @@ namespace cppvk {
 		}
 	};//RenderpassBuilder
 
+	/**
+	 * @brief
+	 *
+	 */
 	class ImageViewBuilder{
 		VkImageViewCreateInfo info = {};
 		DevicePtr logicalDevice;
@@ -1317,6 +1558,10 @@ namespace cppvk {
 
 	};//ImageViewBuilder
 
+	/**
+	 * @brief
+	 *
+	 */
 	class ShaderModuleBuilder {
 		VkShaderModuleCreateInfo info;
 		DevicePtr logicalDevice;
@@ -1353,6 +1598,10 @@ namespace cppvk {
 		
 	};//ShaderModuleBuilder
 
+	/**
+	 * @brief
+	 *
+	 */
 	class DescriptorPoolBuilder{
 		VkDescriptorPoolCreateInfo info;
 		DevicePtr logicalDevice;
@@ -1374,12 +1623,12 @@ namespace cppvk {
 		}
 
 		DescriptorPoolBuilder addPoolSize(const std::function<void(VkDescriptorPoolSize&)>& createFunc){
-			add<VkDescriptorPoolSize>(poolSizeList,createFunc);
+			_add<VkDescriptorPoolSize>(poolSizeList,createFunc);
 			return *this;
 		}
 
 		DescriptorPoolPtr build() {
-			info.poolSizeCount = poolSizeList.size();
+			info.poolSizeCount = static_cast<uint32_t>(poolSizeList.size());
 			info.pPoolSizes = poolSizeList.data();
 
 			VkDescriptorPool pool = VK_NULL_HANDLE;
@@ -1397,6 +1646,10 @@ namespace cppvk {
 
 	};//DescriptorPoolBuilder
 
+	/**
+	 * @brief
+	 *
+	 */
 	class PipelineLayoutBuilder{
 		VkPipelineLayoutCreateInfo info;
 		DevicePtr logicalDevice;
@@ -1416,10 +1669,10 @@ namespace cppvk {
 		}
 
 		PipelineLayoutPtr build() {
-			info.setLayoutCount = layoutList.size();
+			info.setLayoutCount = static_cast<uint32_t>(layoutList.size());
 			if(!layoutList.empty())info.pSetLayouts = layoutList.data();
 
-			info.pushConstantRangeCount = constantRangeList.size();
+			info.pushConstantRangeCount = static_cast<uint32_t>(constantRangeList.size());
 			if(!constantRangeList.empty())info.pPushConstantRanges = constantRangeList.data();
 
 			VkPipelineLayout layout = VK_NULL_HANDLE;
@@ -1436,17 +1689,21 @@ namespace cppvk {
 		}
 
 		PipelineLayoutBuilder addPushConstantRange(const std::function<void(VkPushConstantRange&)> createFunc){
-			add<VkPushConstantRange>(constantRangeList, createFunc);
+			_add<VkPushConstantRange>(constantRangeList, createFunc);
 			return *this;
 		}
 
 		PipelineLayoutBuilder addLayout(const std::function<void(VkDescriptorSetLayout&)> createFunc){
-			add<VkDescriptorSetLayout>(layoutList, createFunc);
+			_add<VkDescriptorSetLayout>(layoutList, createFunc);
 			return *this;
 		}
 
 	};//PiplineLayoutBuilder
 
+	/**
+	 * @brief
+	 *
+	 */
 	class GraphicsPipelineBuilder{
 		VkGraphicsPipelineCreateInfo info;
 		DevicePtr logicalDevice;
@@ -1630,12 +1887,12 @@ namespace cppvk {
 		}
 
 		GraphicsPipelineBuilder addVertexBindingDescription(const std::function<void(VkVertexInputBindingDescription&)>& createFunc){
-			add<VkVertexInputBindingDescription>(vertexBindingDescriptionList, createFunc);
+			_add<VkVertexInputBindingDescription>(vertexBindingDescriptionList, createFunc);
 			return *this;
 		}
 
 		GraphicsPipelineBuilder addVertexAttributeDescription(const std::function<void(VkVertexInputAttributeDescription&)>& createFunc) {
-			add<VkVertexInputAttributeDescription>(vertexAttributeDescriptionList, createFunc);
+			_add<VkVertexInputAttributeDescription>(vertexAttributeDescriptionList, createFunc);
 			return *this;
 		}
 
@@ -1664,12 +1921,12 @@ namespace cppvk {
 		}
 
 		GraphicsPipelineBuilder addViewports(const std::function<void(VkViewport&)> createFunc){
-			add<VkViewport>(viewportList,createFunc);
+			_add<VkViewport>(viewportList,createFunc);
 			return *this;
 		}
 
 		GraphicsPipelineBuilder addScissors(const std::function<void(VkRect2D&)> createFunc){
-			add<VkRect2D>(scissorList,createFunc);
+			_add<VkRect2D>(scissorList,createFunc);
 			return *this;
 		}
 
@@ -2113,7 +2370,7 @@ namespace cppvk {
 		}
 
 		GraphicsPipelineBuilder addAttachment(const std::function<void(VkPipelineColorBlendAttachmentState&)>& createFunc){
-			add<VkPipelineColorBlendAttachmentState>(attachmentList,createFunc);
+			_add<VkPipelineColorBlendAttachmentState>(attachmentList,createFunc);
 			colorBlendStateEnable = true;
 			return *this;
 		}
@@ -2167,32 +2424,32 @@ namespace cppvk {
 				&& !stageList.empty());
 
 			if (!stageList.empty()) {
-				info.stageCount = stageList.size();
+				info.stageCount = static_cast<uint32_t>(stageList.size());
 				info.pStages = stageList.data();
 			}
 			if(!vertexAttributeDescriptionList.empty()){
-				vertexInputState.vertexAttributeDescriptionCount = vertexAttributeDescriptionList.size();
+				vertexInputState.vertexAttributeDescriptionCount = static_cast<uint32_t>(vertexAttributeDescriptionList.size());
 				vertexInputState.pVertexAttributeDescriptions = vertexAttributeDescriptionList.data();
 			}
 			if(!vertexBindingDescriptionList.empty()){
-				vertexInputState.vertexBindingDescriptionCount = vertexBindingDescriptionList.size();
+				vertexInputState.vertexBindingDescriptionCount = static_cast<uint32_t>(vertexBindingDescriptionList.size());
 				vertexInputState.pVertexBindingDescriptions = vertexBindingDescriptionList.data();
 			}
 			if (!viewportList.empty()) {
-				viewportState.viewportCount = viewportList.size();
+				viewportState.viewportCount = static_cast<uint32_t>(viewportList.size());
 				viewportState.pViewports = viewportList.data();
 			}
 			if (!scissorList.empty()) {
-				viewportState.scissorCount = scissorList.size();
+				viewportState.scissorCount = static_cast<uint32_t>(scissorList.size());
 				viewportState.pScissors = scissorList.data();
 			}
 			if (!attachmentList.empty()) {
-				colorBlendState.attachmentCount = attachmentList.size();
+				colorBlendState.attachmentCount = static_cast<uint32_t>(attachmentList.size());
 				colorBlendState.pAttachments = attachmentList.data();
 			}
 
 			if (!dynamicStateList.empty()) { //Optional
-				dynamicState.dynamicStateCount = dynamicStateList.size();
+				dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStateList.size());
 				dynamicState.pDynamicStates = dynamicStateList.data();
 				info.pDynamicState = &dynamicState;
 			}
@@ -2220,8 +2477,12 @@ namespace cppvk {
 				logicalDevice);
 		}
 
-	};
+	};//GraphicsPipelineBuilder
 
+	/**
+	 * @brief
+	 *
+	 */
 	class FrameBufferBuilder {
 		VkFramebufferCreateInfo info;
 		DevicePtr logicalDevice;
@@ -2267,8 +2528,9 @@ namespace cppvk {
 			return *this;
 		}
 
+
 		FramebufferPtr build() {
-			info.attachmentCount = attachmentList.size();
+			info.attachmentCount = static_cast<uint32_t>(attachmentList.size());
 			if(!attachmentList.empty())info.pAttachments = attachmentList.data();
 
 			VkFramebuffer buffer = VK_NULL_HANDLE;
@@ -2284,6 +2546,8 @@ namespace cppvk {
 				logicalDevice);
 		}
 
-	};
+	};//FrameBufferBuilder
 
 }
+
+#pragma warning(pop)
