@@ -52,6 +52,7 @@ class VkContext {
 	std::vector<cppvk::ImagePtr> m_swapchain_image_list;
 	std::vector<cppvk::ImageViewPtr> m_swapchain_image_view_list;
 	std::vector<cppvk::FramebufferPtr> m_frameuffer_list;
+	std::vector<cppvk::CommandBufferPtr> m_cmd_buffer_list;
 public:
 	VkContext() {}
 	~VkContext() {}
@@ -286,6 +287,23 @@ public:
 				.build();
 
 			m_frameuffer_list.push_back(framebuffer);
+		}
+
+		/*コマンドバッファ確保
+			スワップチェーンで作成したイメージ数分作成する。*/
+		m_cmd_buffer_list = cppvk::CommandBufferBuilder::get(m_device)
+			.commandPool(m_commandpool)
+			.level(VK_COMMAND_BUFFER_LEVEL_PRIMARY)
+			.build(static_cast<uint32_t>(m_swapchain_image_view_list.size()));
+
+		/*画面をクリアする際のベースの色*/
+		auto clear_color = std::vector<VkClearColorValue>{};
+
+		/*コマンドバッファへの書き込み*/
+		for (auto&& idx = 0; idx < m_cmd_buffer_list.size(); ++idx) {
+			auto cmd_buffer = m_cmd_buffer_list[idx];
+
+			auto cmdRecord = cppvk::CommandRecord(cmd_buffer, 0);
 		}
 
 	}
