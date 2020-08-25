@@ -10,7 +10,7 @@
 
 #pragma warning(disable  : 26812 100)
 
-//ã¨ã‚Šã‚ãˆãšã€ã‚¤ãƒ™ãƒ³ãƒˆå…¨ã¦å‡ºåŠ›
+//‚Æ‚è‚ ‚¦‚¸AƒCƒxƒ“ƒg‘S‚Äo—ÍB
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
 	VkDebugUtilsMessageTypeFlagsEXT type, 
 	const VkDebugUtilsMessengerCallbackDataEXT* pcallback, 
@@ -25,7 +25,7 @@ const std::string VERTEX_SPV = "vert.spv";
 const std::string FRAGMENT_SPV ="frag.spv";
 
 /*
- find_ifã®ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ã‚’è¿”ã™ç‰ˆ
+ find_if‚ÌƒCƒ“ƒfƒbƒNƒX‚ğ•Ô‚·”Å
 */
 template <class InputIterator, class Predicate>
 uint32_t find_if_index(InputIterator first, InputIterator last, Predicate pred) {
@@ -63,25 +63,25 @@ public:
 		auto lay = cppvk::GetEnumerateInstanceLayer();
 
 
-		//è¨­å®šå¤‰æ•°å®šç¾©
+		//İ’è•Ï”’è‹`
 		cppvk::Names extensions{};
 		cppvk::Names validation_layers{ "VK_LAYER_LUNARG_standard_validation" };
-		cppvk::Names dev_extension = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };//ï¿½Kï¿½{ï¿½ÌŠgï¿½ï¿½ï¿½@ï¿½\ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Åï¿½ï¿½É“ï¿½ï¿½ï¿½Ä‚ï¿½ï¿½ï¿½ï¿½B
+		cppvk::Names dev_extension = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };//•K{‚ÌŠg’£‹@”\‚¾‚¯‚ğÅ‰‚É“ü‚ê‚Ä‚¨‚­B
 
-		//æ©Ÿèƒ½åã®ã¿ã‚’æŠ½å‡º
+		//‹@”\–¼‚Ì‚İ‚ğ’Šo
 		for (const auto& e : ext) {
 			if (strcmp(e.extensionName, "VK_KHR_surface_protected_capabilities") != 0)
-				extensions.push_back(e.extensionName);//è¿½åŠ ã®ãƒ¬ã‚¤ãƒ¤
+				extensions.push_back(e.extensionName);//’Ç‰Á‚ÌƒŒƒCƒ„
 		}
-		//ãƒ‡ãƒãƒƒã‚°ç”¨æ©Ÿèƒ½ã®å®šç¾©
+		//ƒfƒoƒbƒO—p‹@”\‚ğ’è‹`
 		if (useDebug)extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 
-		//å„æ¤œè¨¼ãƒ¬ã‚¤ãƒ¤ãƒ¼ç¢ºèª
+		//ŠeŒŸØƒŒƒCƒ„[Šm”F
 		if (!cppvk::ExistSupport(validation_layers, lay))
 			std::cerr << "Error Validation Layers " << std::endl;
 
 
-		//ã‚¤ãƒ³ã‚¹ã‚¿ãƒ³ã‚¹ä½œæˆ
+		//ƒCƒ“ƒXƒ^ƒ“ƒX‚Ìì¬
 		m_instance = cppvk::InstanceBuilder::get()
 			.applicationName("Hello Vulkan")
 			.engineName("Vulkan Engine")
@@ -92,19 +92,19 @@ public:
 			.build();
 
 #if _DEBUG
-		//ãƒ‡ãƒãƒƒã‚°ç”¨ã®ã‚¤ãƒ³ã‚¹ã‚¿ãƒ³ã‚¹ã‚’ä½œæˆ
+		//ƒfƒoƒbƒO—p‚ÌƒCƒ“ƒXƒ^ƒ“ƒX‚ğì¬B
 		m_messenger = cppvk::DebugUtilsMessengerBuilder::get(m_instance)
 			.severity(MessageServerity(VERBOSE) | MessageServerity(WARNING) | MessageServerity(ERROR))
 			.type(MessageType(GENERAL) | MessageType(VALIDATION) | MessageType(PERFORMANCE))
 			.callback(debugCallback)
 			.build();
 #endif
-		//ã‚µãƒ¼ãƒ•ã‚§ã‚¤ã‚¹æƒ…å ±ã‚’ä½œæˆ
+		//ƒT[ƒtƒFƒCƒXî•ñ‚ğì¬.
 		m_surface = cppvk::WinSurfaceBuilder::get(m_instance)
 			.hwnd(wPtr)
 			.build();
 
-		//ç‰©ç†ãƒ‡ãƒã‚¤ã‚¹ã®ä½œæˆ
+		//•¨—ƒfƒoƒCƒX‚Ì‘I‘ğ
 		auto gpu = m_instance->ChooseGpu([&dev_extension](cppvk::PhyscialDeivceSet& dev_set) {
 			std::set<std::string> requiredExtensions(dev_extension.begin(), dev_extension.end());
 			for (const auto& ext : dev_set.extensions) {
@@ -113,12 +113,12 @@ public:
 			return dev_set.props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU && requiredExtensions.empty();
 		});
 
-		/*ãƒ‡ãƒã‚¤ã‚¹ã‚­ãƒ¥ãƒ¼ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ã®å–å¾—*/
+		/*ƒfƒoƒCƒXƒLƒ…[ƒCƒ“ƒfƒbƒNƒX‚Ìæ“¾	*/
 		auto graphics_queue_index = find_if_index(gpu.qprops.begin(), gpu.qprops.end(), [](VkQueueFamilyProperties queue) {return queue.queueFlags & VK_QUEUE_GRAPHICS_BIT; });
 		if (graphics_queue_index == UINT32_MAX)
 			std::cerr << "not  find VK_QUEUE_GRAPHICS_BIT." << std::endl;
 
-		/*ãƒ‡ãƒã‚¤ã‚¹ã®æ‹¡å¼µæ©Ÿèƒ½ã‚’å–å¾—*/
+		/*ƒfƒoƒCƒX‚ÌŠg’£‹@”\‚ğæ“¾*/
 		dev_extension.clear();
 		for (auto&& dev_ext : gpu.extensions) {
 			dev_extension.push_back(dev_ext.extensionName);
@@ -126,58 +126,58 @@ public:
 
 		cppvk::Priorities default_queue_priority{ 1.0f };
 
-		/*è«–ç†ãƒ‡ãƒã‚¤ã‚¹ã®ä½œæˆ*/
+		/*˜_—ƒfƒoƒCƒX‚Ìì¬*/
 		m_device = cppvk::DeviceBuilder::get(gpu.device)
 			.addQueueInfo(default_queue_priority, graphics_queue_index)
 			.extensions(dev_extension)
 			.features({})
 			.build();
 
-		/*ã‚³ãƒãƒ³ãƒ‰ãƒ—ãƒ¼ãƒ«ã®ä½œæˆ*/
+		/*ƒRƒ}ƒ“ƒhƒv[ƒ‹‚Ìì¬*/
 		m_commandpool = cppvk::CommandPoolBuilder::get(m_device)
-			.flags(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT)//ã‚³ãƒãƒ³ãƒ‰ãƒãƒƒãƒ•ã‚¡ã‚’æ¯å›è¨­å®šã™ã‚‹ã€‚
+			.flags(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT)//ƒRƒ}ƒ“ƒhƒoƒbƒtƒ@‚ğ–ˆ‰ñİ’è‚·‚é
 			.queueFamilyIndices(graphics_queue_index)
 			.build();
 
-		/*ãƒ‡ãƒã‚¤ã‚¹ã‚­ãƒ¥ãƒ¼å–å¾—*/
+		/*ƒfƒoƒCƒXƒLƒ…[‚Ìæ“¾*/
 		m_graphics_queue =m_device->getQueue(graphics_queue_index, 0);
 
 
-		/*ã‚µãƒ¼ãƒ•ã‚§ã‚¤ã‚¹ã®å„èƒ½åŠ›å€¤ã®å–å¾—ã‚’è¡Œã†ã€‚*/
+		/*ƒT[ƒtƒFƒCƒX‚ÌŠe”\—Í’l‚Ìæ“¾‚ğs‚¤B*/
 		auto capabilites = m_surface->GetSurfaceCapabilities(gpu.device);
 		auto formats = m_surface->GetEnumerateSurfaceFormats(gpu.device);
 		auto presents = m_surface->GetEnumerateSurfacePresentmodes(gpu.device);
 
-		/*æœ€é©ãªãƒ•ã‚©ãƒ¼ãƒãƒƒãƒˆã‚’é¸æŠ*/
+		/*Å“K‚ÈƒtƒH[ƒ}ƒbƒg‚ğ‘I‘ğ*/
 		auto surface_format = std::find_if(formats.begin(), formats.end(), [](VkSurfaceFormatKHR format){
 			return format.format == VkFormat::VK_FORMAT_B8G8R8A8_UNORM;
 		});
 		if (surface_format == formats.end())
 			std::cerr << "No suitable format found." << std::endl;
 
-		/*æœ€é©ãªãƒ—ãƒ¬ã‚¼ãƒ³ãƒˆãƒ¢ãƒ¼ãƒ‰ã‚’é¸æŠ*/
+		/*Å“K‚ÈƒvƒŒƒ[ƒ“ƒgƒ‚[ƒh‚ğ‘I‘ğ*/
 		auto surface_present = std::find_if(presents.begin(), presents.end(), [](VkPresentModeKHR mode) {
 			return mode == VkPresentModeKHR::VK_PRESENT_MODE_FIFO_KHR;
 		});
 		if (surface_present == presents.end())
 			std::cerr << "No suitable present mode found." << std::endl;
 
-		/*ã‚¹ãƒ¯ãƒƒãƒ—ãƒã‚§ãƒ¼ãƒ³ç”Ÿæˆã®æƒ…å ±ã‚’å–å¾—*/
+		/*ƒXƒƒbƒvƒ`ƒF[ƒ“¶¬‚Ìî•ñ‚ğæ“¾*/
 		auto image_count = capabilites.minImageCount;
 		auto surface_extent = capabilites.currentExtent;
 		if (surface_extent.width == 0u) {
-			//ç„¡åŠ¹ãªå€¤ã‚’è£œå®Œ
+			//–³Œø‚È’l‚ğ•âŠ®
 			surface_extent.width = width;
 			surface_extent.height = height;
 		}
-		/*ã‚­ãƒ¥ãƒ¼ãƒ•ã‚¡ãƒŸãƒªãƒ¼ã®ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ã‚’ç”¨æ„*/
+		/*ƒLƒ…[ƒtƒ@ƒ~ƒŠ[‚ÌƒCƒ“ƒfƒbƒNƒX‚ğ—pˆÓ*/
 		cppvk::Indexs queue_family_indices = { graphics_queue_index };
-		//ã‚µãƒ¼ãƒ•ã‚§ã‚¤ã‚¹ã®ã‚µãƒãƒ¼ãƒˆæ˜¨æ—¥ã‚’ãƒã‚§ãƒƒã‚¯
+		//ƒT[ƒtƒFƒCƒX‚ÌƒTƒ|[ƒg‹@”\‚ğƒ`ƒFƒbƒN
 		for (auto&& indice : queue_family_indices) {
 			if(!m_surface->GetPhysicalDevicceSurfaceSupportKHR(gpu.device, indice))
 				std::cerr << "Unsupported index information." << std::endl;
 		}
-		/*ã‚¹ãƒ¯ãƒƒãƒ—ãƒã‚§ãƒ¼ãƒ³ã®ä½œæˆ*/
+		/*ƒXƒƒbƒvƒ`ƒF[ƒ“‚Ìì¬*/
 		m_swapchain = cppvk::SwapchainBuilder::get(m_device)
 			.surface(m_surface)
 			.minImageCount(image_count)
@@ -199,8 +199,8 @@ public:
 		depth_extent.width = surface_extent.width;
 		depth_extent.height = surface_extent.height;
 
-		/*ãƒ‡ãƒ—ã‚¹ãƒãƒƒãƒ•ã‚¡ã®ã‚¤ãƒ¡ãƒ¼ã‚¸ã‚’ä½œæˆ*/
-		m_depth_image = cppvk::ImageBuilder::get(m_device)
+		/*ƒfƒvƒXƒoƒbƒtƒ@‚Ìimageì¬*/
+		m_depth_image = cppvk::ImageBuilder::get(m_device)//ƒfƒvƒXƒoƒbƒtƒ@—p‚ÌƒCƒ[ƒWì¬
 			.imageType(VK_IMAGE_TYPE_2D)
 			.format(VK_FORMAT_D32_SFLOAT)
 			.extent(depth_extent)
@@ -218,12 +218,12 @@ public:
 		
 		m_swapchain_image_list = m_swapchain->GetImages();
 
-		//ä½œæˆã—ãŸã‚¤ãƒ¡ãƒ¼ã‚¸ã‚’ãƒã‚¤ãƒ³ãƒ‰ã™ã‚‹ã€‚
+		//ì¬‚µ‚½ƒCƒ[ƒW‚ğƒoƒCƒ“ƒh‚·‚éB
 		m_depth_image_memory = std::make_shared<cppvk::DeviceMemory>(m_device, memory_type_index, depth_image_requirements.size);
 		m_depth_image_memory->bind<0>(m_depth_image);
 
-		/* swapchain ã® image viewã®ä½œæˆ
-			swapchainã‹ã‚‰å–å¾—ã—ãŸimageã¯ã™ã§ã«ãƒã‚¤ãƒ³ãƒ‰ã•ã‚Œã¦ã„ã‚‹ã€‚*/
+		/* swapchain ‚Ì image view‚Ìì¬
+			swapchain‚©‚çæ“¾‚µ‚½image‚Í‚·‚Å‚ÉƒoƒCƒ“ƒh‚³‚ê‚Ä‚¢‚é	*/
 		m_swapchain_image_view_list.resize(m_swapchain_image_list.size());
 		for (auto i = 0; i < m_swapchain_image_list.size(); ++i) {
 			m_swapchain_image_view_list[i] = cppvk::ImageViewBuilder::get(m_device)
@@ -253,7 +253,7 @@ public:
 			.subresourceRange({ VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 })
 			.build();
 
-		/*!@ ã‚µãƒ–ãƒ‘ã‚¹ï¼šå‰ã®ãƒ‘ã‚¹ã®ãƒ•ãƒ¬ãƒ¼ãƒ ãƒãƒƒãƒ•ã‚¡ã®å†…å®¹ã«ä¾å­˜ã™ã‚‹å¾Œç¶šã®ãƒ¬ãƒ³ãƒ€ãƒªãƒ³ã‚°æ“ä½œï¼ˆãƒ¬ãƒ³ãƒ€ãƒ¼ãƒ‘ã‚¹ã®å‡¦ç†ã®äº‹ï¼‰*/
+		/*!@ ƒTƒuƒpƒXF‘O‚ÌƒpƒX‚ÌƒtƒŒ[ƒ€ƒoƒbƒtƒ@‚Ì“à—e‚ÉˆË‘¶‚·‚éŒã‘±‚ÌƒŒƒ“ƒ_ƒŠƒ“ƒO‘€ì(ƒŒƒ“ƒ_[ƒpƒX‚Ìˆ—‚Ì‚±‚Æ)*/
 		VkAttachmentReference colorAttachmentRef = {};
 		colorAttachmentRef.attachment = 0;
 		colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
@@ -265,7 +265,7 @@ public:
 		auto depth_attachment = cppvk::AttachmentDescriptionCreate(VK_FORMAT_D32_SFLOAT, VkSampleCountFlagBits::VK_SAMPLE_COUNT_1_BIT);
 		depth_attachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-		/* Render Passã®ä½œæˆãƒ•ãƒ¬ãƒ¼ãƒ ãƒãƒƒãƒ•ã‚¡ã‚’ç”Ÿæˆã™ã‚‹å‰ã«å¿…è¦ã€‚*/
+		/* Render Pass‚Ìì¬ ƒtƒŒ[ƒ€ƒoƒbƒtƒ@‚ğ¶¬‚·‚é‘O‚É•K—vB*/
 		m_renderpass = cppvk::RenderpassBuilder::get(m_device)
 			.addAttachments(color_attachment)
 			.addAttachments(depth_attachment)
@@ -273,7 +273,7 @@ public:
 			.addSubpassDescription(cppvk::SubpassDescriptionCreate(colorAttachmentRef, depthAttachmentRef))
 			.build();
 
-		/*ãƒ•ãƒ¬ãƒ¼ãƒ ãƒãƒƒãƒ•ã‚¡ã®ä½œæˆï¼ˆæç”»å…ˆç®¡ç†ï¼‰*/
+		/*ƒtƒŒ[ƒ€ƒoƒbƒtƒ@‚Ìì¬(•`‰ææŠÇ—)*/
 		for (auto&& image_view : m_swapchain_image_view_list) {
 
 			auto framebuffer = cppvk::FrameBufferBuilder::get(m_device)
