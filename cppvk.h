@@ -299,6 +299,7 @@ namespace cppvk {
 		delete_wrap_ptr(type* item, deleteFunc func, Args... args)
 			:value(item), cleanup(func), context({ args... }) {}
 		virtual ~delete_wrap_ptr() {
+			if(cleanup == nullptr) return;
 			action(cleanup);
 		}
 		type* get()const noexcept {
@@ -441,7 +442,6 @@ namespace cppvk {
 	using PipelineLayoutPtr = shared_pointer<delete_wrap_ptr<VkPipelineLayout, DevicePtr>>;
 	using ShaderModulePtr = shared_pointer<delete_wrap_ptr<VkShaderModule, DevicePtr>>;
 	using DescriptorPoolPtr = shared_pointer<delete_wrap_ptr<VkDescriptorPool, DevicePtr>>;
-	using FencePtr = shared_pointer<delete_wrap_ptr<VkFence, DevicePtr>>;
 	using SemaphorePtr = shared_pointer<delete_wrap_ptr<VkSemaphore, DevicePtr>>;
 	using EventPtr = shared_pointer<delete_wrap_ptr<VkEvent, DevicePtr>>;
 	using DebugMessengerPtr = shared_pointer < delete_wrap_ptr< VkDebugUtilsMessengerEXT, InstancePtr>>;
@@ -467,19 +467,6 @@ namespace cppvk {
 	class _Renderpass : public Base {
 	public:
 		using Base::Base;
-		//virtual VkRenderPassBeginInfo ToBeginInfo(FramebufferPtr framebuffer) {
-		//	//描画の為、レンダーパスを開始する。
-		//	VkRenderPassBeginInfo info = {};
-		//	info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		//	info.renderPass = **this;
-		//	info.framebuffer = **framebuffer;
-		//	//レンダー領域のサイズを定義　(シェーダのロードとストアが行われる場所を定義)
-		//	info.renderArea.offset = { 0,0 };
-		//	info.renderArea.extent = imageManager.extent;
-		//	info.clearValueCount = clearColors.size();
-		//	info.pClearValues = clearColors.data();
-		//	return info;
-		//}
 	};
 	using Renderpass = _Renderpass<delete_wrap_ptr<VkRenderPass, DevicePtr>>;
 	using RenderpassPtr = shared_pointer<Renderpass>;
@@ -504,28 +491,12 @@ namespace cppvk {
 	using CommandPoolPtr = shared_pointer<CommandPool>;
 
 	template<class Base = delete_wrap_ptr<VkCommandBuffer, DevicePtr>>
-	class CommandBuffer : public Base {
+	class _CommandBuffer : public Base {
 	public:
 		using Base::Base;
-		void Reset(VkCommandBufferResetFlags flags) {
-			Check(vkResetCommandBuffer(**this, flags));
-		}
-		void Begin(VkCommandBufferUsageFlags flags) {
-			/*コマンドバッファの記録を開始*/
-			VkCommandBufferBeginInfo beginInfo = {};
-			beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-			beginInfo.flags = flags;// VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-			/*コピー操作の実行が終了するまで、描画コマンドバッファを使用する。*/
-			Check(vkBeginCommandBuffer(**this, &beginInfo));
-		}
-		void End() {
-			Check(vkEndCommandBuffer(**this));
-		}
-		void BeginRenderPass(VkRenderPassBeginInfo& info) {
-			//レンダーパスを開始。
-			vkCmdBeginRenderPass(**this, &info, VK_SUBPASS_CONTENTS_INLINE);
-		}
 	};
+	using CommandBuffer = _CommandBuffer<delete_wrap_ptr<VkCommandBuffer, DevicePtr>>;
+	using CommandBufferPtr = shared_pointer<CommandBuffer>;
 
 	template<class Base>
 	class _Swapchain : Base{
@@ -554,6 +525,14 @@ namespace cppvk {
 	};
 	using Swapchain = _Swapchain<delete_wrap_ptr<VkSwapchainKHR, DevicePtr>>;
 	using SwapchainPtr = shared_pointer<Swapchain>;
+
+	template<class Base>
+	class _Fence : Base {
+		public:
+			using Base::Base;
+	};
+	using Fence = _Fence<delete_wrap_ptr<VkFence, DevicePtr>>;
+	using FencePtr = shared_pointer<Fence>;
 
 	class DeviceMemory {
 		DevicePtr device;
@@ -601,6 +580,47 @@ namespace cppvk {
 	};
 	using DeviceMemoryPtr = shared_pointer<DeviceMemory>;
 
+	class CommandRecord  {
+		CommandBufferPtr m_pcmd;
+		public:
+			CommandRecord(CommandBufferPtr cmd, const VkCommandBufferUsageFlags flags):m_pcmd(cmd){
+				/*コマンドバッファの記録を開始*/
+				VkCommandBufferBeginInfo beginInfo = {};
+				beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+				beginInfo.flags = flags;// VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+				/*コピー操作の実行が終了するまで、描画コマンドバッファを使用する。*/
+				Check(vkBeginCommandBuffer(**m_pcmd, &beginInfo));
+			}
+			~CommandRecord(){
+				Check(vkEndCommandBuffer(**m_pcmd));
+			}
+		private:
+			static void* operator new(size_t size);
+			static void operator delete(void *ptr);
+	};
+
+	class RenderRecord {
+		CommandBufferPtr m_pcmd;
+		public:
+			RenderRecord(CommandBufferPtr cmd, RenderpassPtr renderpass, FramebufferPtr framebuffer,
+				VkRect2D area, std::vector<VkClearValue> values):m_pcmd(cmd){
+				VkRenderPassBeginInfo info{};
+				info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+				info.pNext = VK_NULL_HANDLE;
+				info.renderPass = **renderpass;
+				info.framebuffer = **framebuffer;
+				info.renderArea = area;
+				info.clearValueCount = static_cast<uint32_t>(values.size());
+				info.pClearValues = values.data();
+				vkCmdBeginRenderPass(**m_pcmd, &info, VK_SUBPASS_CONTENTS_INLINE);
+			}
+			~RenderRecord(){
+				vkCmdEndRenderPass(**m_pcmd);
+			}
+		private:
+			static void* operator new(size_t size);
+			static void operator delete(void *ptr);
+	};
 
 	/**
 	 * @brief 
@@ -1496,6 +1516,48 @@ namespace cppvk {
 				logicalDevice);
 		}
 	};//RenderpassBuilder
+
+	class CommandBufferBuilder {
+		VkCommandBufferAllocateInfo info = {};
+		DevicePtr logicalDevice;
+	public:
+		CommandBufferBuilder(DevicePtr pointer):logicalDevice(pointer){
+			info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+			info.pNext = VK_NULL_HANDLE;
+		}
+
+		static CommandBufferBuilder get(DevicePtr pointer){
+			return CommandBufferBuilder(pointer);
+		}
+
+		CommandBufferBuilder commandPool(CommandPoolPtr pool){
+			info.commandPool = **pool;
+			return *this;
+		}
+
+		CommandBufferBuilder level(VkCommandBufferLevel l) {
+			info.level = l;
+			return *this;
+		}
+
+		std::vector<CommandBufferPtr> build(const uint32_t count) {
+
+			info.commandBufferCount = count;
+
+			std::vector<VkCommandBuffer> cmdBuffer(count);
+			auto err = vkAllocateCommandBuffers(**logicalDevice,&info,cmdBuffer.data());
+			Check(err);
+
+			//convert to buffer pointer
+			std::vector<CommandBufferPtr> cmdList(count);
+			for(auto i = 0; i < cmdBuffer.size(); ++i) {
+				cmdList[i] = std::make_shared<CommandBuffer>(cmdBuffer[i], nullptr, logicalDevice);
+			}
+
+			return cmdList;
+		}
+
+	};
 
 	/**
 	 * @brief
@@ -2547,6 +2609,45 @@ namespace cppvk {
 		}
 
 	};//FrameBufferBuilder
+
+	/**
+	 * @brief 
+	 * 
+	 */
+	class FenceBuilder {
+		VkFenceCreateInfo info;
+		DevicePtr logicalDevice;
+	public:
+		FenceBuilder(DevicePtr pointer):logicalDevice(pointer){
+			info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+			info.pNext = VK_NULL_HANDLE;
+		}
+
+		static FenceBuilder get(DevicePtr pointer){
+			return FenceBuilder(pointer);
+		}
+
+		FenceBuilder flag(VkFenceCreateFlags flags){
+			info.flags = flags;
+			return *this;
+		}
+
+		FencePtr build(){
+			VkFence fence;
+			auto err = vkCreateFence(**logicalDevice, &info, VK_NULL_HANDLE, &fence);
+			Check(err);
+
+			return std::make_shared<Fence>(
+				fence,
+				[](VkFence ptr, DevicePtr device){
+					std::cout << STR(vkDestroyFence) << std::endl;
+					vkDestroyFence(**device, ptr, VK_NULL_HANDLE);
+				},
+				logicalDevice);
+
+		}
+
+	};
 
 }
 
