@@ -442,8 +442,6 @@ namespace cppvk {
 	using PipelineLayoutPtr = shared_pointer<delete_wrap_ptr<VkPipelineLayout, DevicePtr>>;
 	using ShaderModulePtr = shared_pointer<delete_wrap_ptr<VkShaderModule, DevicePtr>>;
 	using DescriptorPoolPtr = shared_pointer<delete_wrap_ptr<VkDescriptorPool, DevicePtr>>;
-	using SemaphorePtr = shared_pointer<delete_wrap_ptr<VkSemaphore, DevicePtr>>;
-	using EventPtr = shared_pointer<delete_wrap_ptr<VkEvent, DevicePtr>>;
 	using DebugMessengerPtr = shared_pointer < delete_wrap_ptr< VkDebugUtilsMessengerEXT, InstancePtr>>;
 	using ImageViewPtr = shared_pointer<delete_wrap_ptr<VkImageView, DevicePtr>> ;
 
@@ -534,6 +532,22 @@ namespace cppvk {
 	using Fence = _Fence<delete_wrap_ptr<VkFence, DevicePtr>>;
 	using FencePtr = shared_pointer<Fence>;
 
+	template<class Base>
+	class _Event : Base {
+		public:
+			using Base::Base;
+	};
+	using Event = _Event<delete_wrap_ptr<VkEvent, DevicePtr>>;
+	using EventPtr = shared_pointer<Event>;
+
+	template<class Base>
+	class _Semaphore : Base {
+		public:
+			using Base::Base;
+	};
+	using Semaphore = _Semaphore<delete_wrap_ptr<VkSemaphore, DevicePtr>>;
+	using SemaphorePtr = shared_pointer<Semaphore>;
+
 	class DeviceMemory {
 		DevicePtr device;
 		VkDeviceMemory handle;
@@ -580,6 +594,10 @@ namespace cppvk {
 	};
 	using DeviceMemoryPtr = shared_pointer<DeviceMemory>;
 
+	/**
+	 * @brief コマンドバッファへの書き込みを行う際のエントリーポイント
+	 * 
+	 */
 	class CommandRecord  {
 		CommandBufferPtr m_pcmd;
 		public:
@@ -599,6 +617,10 @@ namespace cppvk {
 			static void operator delete(void *ptr);
 	};
 
+	/**
+	 * @brief レンダーパス開始のエントリーポイント
+	 * 
+	 */
 	class RenderRecord {
 		CommandBufferPtr m_pcmd;
 		public:
@@ -2611,8 +2633,8 @@ namespace cppvk {
 	};//FrameBufferBuilder
 
 	/**
-	 * @brief 
-	 * 
+	 * @brief CPU-GPUでの同期を行う。
+	 * GPUでシグナル状態を更新、ホスト側で待機する。
 	 */
 	class FenceBuilder {
 		VkFenceCreateInfo info;
@@ -2632,6 +2654,16 @@ namespace cppvk {
 			return *this;
 		}
 
+		FenceBuilder next(VkExportFenceCreateInfo& einfo) {
+			info.pNext = &einfo;
+			return *this;
+		}
+
+		FenceBuilder next(VkExportFenceWin32HandleInfoKHR& einfo) {
+			info.pNext = &einfo;
+			return *this;
+		}
+
 		FencePtr build(){
 			VkFence fence;
 			auto err = vkCreateFence(**logicalDevice, &info, VK_NULL_HANDLE, &fence);
@@ -2644,7 +2676,76 @@ namespace cppvk {
 					vkDestroyFence(**device, ptr, VK_NULL_HANDLE);
 				},
 				logicalDevice);
+		}
 
+	};
+
+	/**
+	 * @brief CPU-GPUでの同期を行う。
+	 * CPU/GPUどちらともシグナル状態を更新、デバイス側で待機する。
+	 */
+	class EventBuilder {
+		VkEventCreateInfo info;
+		DevicePtr logicalDevice;
+	public:
+		EventBuilder(DevicePtr pointer):logicalDevice(pointer) {
+			info.sType = VK_STRUCTURE_TYPE_EVENT_CREATE_INFO;
+			info.pNext = VK_NULL_HANDLE;
+			info.flags = 0;
+		}
+
+		static EventBuilder get(DevicePtr pointer) {
+			return EventBuilder(pointer);
+		}
+
+		EventPtr build() {
+
+			VkEvent event;
+			auto err = vkCreateEvent(**logicalDevice, &info, VK_NULL_HANDLE, &event);
+			Check(err);
+
+			return std::make_shared<Event>(
+				event,
+				[](VkEvent ptr, DevicePtr device){
+					std::cout << STR(vkDestroyEvent) << std::endl;
+					vkDestroyEvent(**device, ptr, VK_NULL_HANDLE);
+				},
+				logicalDevice
+			);
+		}
+
+	};
+
+	/**
+	 * @brief コマンドキュー間の同期で使用。
+	 * GPUでシグナル状態を更新。
+	 */
+	class SemaphoreBuilder {
+		VkSemaphoreCreateInfo info;
+		DevicePtr logicalDevice;
+	public:
+		SemaphoreBuilder(DevicePtr pointer):logicalDevice(pointer){
+			info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+			info.pNext = VK_NULL_HANDLE;
+			info.flags = 0;
+		}
+
+		static SemaphoreBuilder get(DevicePtr pointer) {
+			return SemaphoreBuilder(pointer);
+		}
+
+		SemaphoreBuilder next(VkExportSemaphoreCreateInfo& einfo) {
+			info.pNext = &einfo;
+			return *this;
+		}
+
+		SemaphoreBuilder next(VkExportSemaphoreWin32HandleInfoKHR& einfo) {
+			info.pNext = &einfo;
+			return *this;
+		}
+
+		SemaphorePtr build() {
+			return nullptr;
 		}
 
 	};

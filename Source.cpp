@@ -53,6 +53,7 @@ class VkContext {
 	std::vector<cppvk::ImageViewPtr> m_swapchain_image_view_list;
 	std::vector<cppvk::FramebufferPtr> m_frameuffer_list;
 	std::vector<cppvk::CommandBufferPtr> m_cmd_buffer_list;
+	std::vector<cppvk::FencePtr> m_sync_fence_list;
 public:
 	VkContext() {}
 	~VkContext() {}
@@ -288,6 +289,12 @@ public:
 
 			m_frameuffer_list.push_back(framebuffer);
 		}
+		/*コマンド同期用オブジェクトを作成*/
+		m_sync_fence_list.resize(m_swapchain_image_view_list.size());
+		for (auto& fence : m_sync_fence_list) {
+			fence = cppvk::FenceBuilder::get(m_device)
+				.build();
+		}
 
 		/*コマンドバッファ確保
 			スワップチェーンで作成したイメージ数分作成する。*/
@@ -295,18 +302,31 @@ public:
 			.commandPool(m_commandpool)
 			.level(VK_COMMAND_BUFFER_LEVEL_PRIMARY)
 			.build(static_cast<uint32_t>(m_swapchain_image_view_list.size()));
+	}
 
+	void CommandWrite(const uint32_t& width, const uint32_t& height) {
 		/*画面をクリアする際のベースの色*/
-		auto clear_color = std::vector<VkClearColorValue>{};
+		auto clear_color = std::vector<VkClearValue>{
+			{ { 0.5f, 0.25f, 0.25f, 0.0f }, { 1.0, 0} }
+		};
+		VkRect2D render_area;
+		render_area.extent = VkExtent2D{width, height};
+		render_area.offset = VkOffset2D{ 0, 0 };
 
 		/*コマンドバッファへの書き込み*/
 		for (auto&& idx = 0; idx < m_cmd_buffer_list.size(); ++idx) {
-			auto cmd_buffer = m_cmd_buffer_list[idx];
+			 //n番目のバッファをキャッシュ...
+			auto pcmdbuffer = m_cmd_buffer_list[idx];
+			auto pfbuffer = m_frameuffer_list[idx];
+			// コマンドバッファへの書き込み開始
+			auto cmdRecord = cppvk::CommandRecord(pcmdbuffer, 0);
+			// レンダーパス開始
+			auto renderRecord = cppvk::RenderRecord(pcmdbuffer, m_renderpass, pfbuffer, render_area, clear_color);
 
-			auto cmdRecord = cppvk::CommandRecord(cmd_buffer, 0);
 		}
-
 	}
+
+
 };
 
 class VkApi :public  App {
@@ -314,6 +334,7 @@ class VkApi :public  App {
 public:
 	virtual void Initialize() override {
 		context.WinInit(winptr->getWin32(), 1280, 720);
+		context.CommandWrite(1280, 720);
 	}
 
 	virtual void Update() override {
