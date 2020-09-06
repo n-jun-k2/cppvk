@@ -426,34 +426,72 @@ namespace cppvk {
 	using Device = _Device<delete_wrap_ptr<VkDevice>>;
 	using DevicePtr = shared_pointer<Device>;
 
+	
+	
+	template<class Base>
+	class _Fence : Base {
+		public:
+			using Base::Base;
+	};
+	using Fence = _Fence<delete_wrap_ptr<VkFence, DevicePtr>>;
+	using FencePtr = shared_pointer<Fence>;
+
+	template<class Base>
+	class _Event : Base {
+		public:
+			using Base::Base;
+	};
+	using Event = _Event<delete_wrap_ptr<VkEvent, DevicePtr>>;
+	using EventPtr = shared_pointer<Event>;
+
+	template<class Base>
+	class _Semaphore : Base {
+		public:
+			using Base::Base;
+	};
+	using Semaphore = _Semaphore<delete_wrap_ptr<VkSemaphore, DevicePtr>>;
+	using SemaphorePtr = shared_pointer<Semaphore>;
+
 	template<class Base> 
 	class _Queue : Base{
 	public:
 		using Base::Base;
 		template<
-			template<class T, class A = allocator<T>> 
+			template<class T, class A = std::allocator<T>> 
 				class Container>
-		void Submit(Container<VkSemaphore>& wait_semaphore_list, 
+		void Submit(const VkPipelineStageFlags& stageFlag,
+					FencePtr pfence,
+					Container<VkSemaphore>& wait_semaphore_list, 
 					Container<VkCommandBuffer>& cmdbuffer_list, 
 					Container<VkSemaphore>& signal_semaphore_list){
 			VkSubmitInfo info{};
 			info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+			info.pNext = VK_NULL_HANDLE;
+			info.waitSemaphoreCount = static_cast<uint32_t>(wait_semaphore_list.size());
+			info.pWaitSemaphores = wait_semaphore_list.data();
+			info.commandBufferCount = static_cast<uint32_t>(cmdbuffer_list.size());
+			info.pCommandBuffers = cmdbuffer_list.data();
+			info.signalSemaphoreCount = static_cast<uint32_t>(signal_semaphore_list.size());
+			info.pSignalSemaphores = signal_semaphore_list.data();
+			info.pWaitDstStageMask = &stageFlag;
+			// Todo:要見直し
+			Check(vkQueueSubmit(**this, 1, &info, **pfence));
 		}
 
 		template<
-			template<class T, class A = allocator<T>> 
+			template<class T, class A = std::allocator<T>> 
 				class Container>
 		Container<VkResult> Present(Container<VkSemaphore>& semaphore_list, Container<VkSwapchainKHR>& swapchain_list, Container<uint32_t>& indice_list){
 			VkPresentInfoKHR info{};
 			info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 			info.pNext = VK_NULL_HANDLE;
-			info.waitSemaphoreCount = static_cast<uint32_t>(semaphore_list.size())
+			info.waitSemaphoreCount = static_cast<uint32_t>(semaphore_list.size());
 			info.pWaitSemaphores = semaphore_list.data();
 
 			info.swapchainCount = static_cast<uint32_t>(swapchain_list.size());
 
 			if(info.swapchainCount == indice_list.size()){
-				std::runtime_error("The size of indice_list and swapchain_list must match.")
+				std::runtime_error("The size of indice_list and swapchain_list must match.");
 			}
 			info.pSwapchains = swapchain_list.data();
 			info.pImageIndices = indice_list.data();
@@ -542,31 +580,6 @@ namespace cppvk {
 	};
 	using CommandBuffer = _CommandBuffer<delete_wrap_ptr<VkCommandBuffer, DevicePtr>>;
 	using CommandBufferPtr = shared_pointer<CommandBuffer>;
-
-	template<class Base>
-	class _Fence : Base {
-		public:
-			using Base::Base;
-	};
-	using Fence = _Fence<delete_wrap_ptr<VkFence, DevicePtr>>;
-	using FencePtr = shared_pointer<Fence>;
-
-	template<class Base>
-	class _Event : Base {
-		public:
-			using Base::Base;
-	};
-	using Event = _Event<delete_wrap_ptr<VkEvent, DevicePtr>>;
-	using EventPtr = shared_pointer<Event>;
-
-	template<class Base>
-	class _Semaphore : Base {
-		public:
-			using Base::Base;
-	};
-	using Semaphore = _Semaphore<delete_wrap_ptr<VkSemaphore, DevicePtr>>;
-	using SemaphorePtr = shared_pointer<Semaphore>;
-
 
 	template<class Base>
 	class _Swapchain : Base{
