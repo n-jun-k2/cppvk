@@ -45,7 +45,7 @@ class VkContext {
 	cppvk::PipelineLayoutPtr m_pipelineLayout;
 	cppvk::PipelinePtr m_graphicPipline;
 
-	VkQueue m_graphics_queue;
+	cppvk::QueuePtr m_graphics_queue;
 	cppvk::DeviceMemoryPtr m_depth_image_memory;
 	cppvk::ImagePtr m_depth_image;
 	cppvk::ImageViewPtr m_depth_image_view;
@@ -142,7 +142,7 @@ public:
 			.build();
 
 		/*デバイスキューの取得*/
-		m_graphics_queue =m_device->getQueue(graphics_queue_index, 0);
+		m_graphics_queue =m_device->getQueue(m_device, graphics_queue_index, 0);
 
 
 		/*サーフェイスの各能力値の取得を行う。*/
@@ -321,7 +321,7 @@ public:
 			// コマンドバッファへの書き込み開始
 			auto cmdRecord = cppvk::CommandRecord(pcmdbuffer, 0);
 			// レンダーパス開始
-			auto renderRecord = cppvk::RenderRecord(pcmdbuffer, m_renderpass, pfbuffer, render_area, clear_color);
+			auto renderRecord = cppvk::RenderRecord::CreateRenderRecord_Iniline(pcmdbuffer, m_renderpass, pfbuffer, render_area, clear_color);
 
 		}
 	}

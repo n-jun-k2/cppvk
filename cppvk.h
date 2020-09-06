@@ -279,7 +279,6 @@ namespace cppvk {
 
 	};
 
-
 	/**
 	 * @brief Object to own custom deleter
 	 * 
@@ -423,15 +422,63 @@ namespace cppvk {
 	using Surface = _Surface<delete_wrap_ptr< VkSurfaceKHR, InstancePtr>>;
 	using SurfacePtr = shared_pointer <Surface>;
 
+	template<class Base> class _Device;
+	using Device = _Device<delete_wrap_ptr<VkDevice>>;
+	using DevicePtr = shared_pointer<Device>;
+
+	template<class Base> 
+	class _Queue : Base{
+	public:
+		using Base::Base;
+		template<
+			template<class T, class A = allocator<T>> 
+				class Container>
+		void Submit(Container<VkSemaphore>& wait_semaphore_list, 
+					Container<VkCommandBuffer>& cmdbuffer_list, 
+					Container<VkSemaphore>& signal_semaphore_list){
+			VkSubmitInfo info{};
+			info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		}
+
+		template<
+			template<class T, class A = allocator<T>> 
+				class Container>
+		Container<VkResult> Present(Container<VkSemaphore>& semaphore_list, Container<VkSwapchainKHR>& swapchain_list, Container<uint32_t>& indice_list){
+			VkPresentInfoKHR info{};
+			info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+			info.pNext = VK_NULL_HANDLE;
+			info.waitSemaphoreCount = static_cast<uint32_t>(semaphore_list.size())
+			info.pWaitSemaphores = semaphore_list.data();
+
+			info.swapchainCount = static_cast<uint32_t>(swapchain_list.size());
+
+			if(info.swapchainCount == indice_list.size()){
+				std::runtime_error("The size of indice_list and swapchain_list must match.")
+			}
+			info.pSwapchains = swapchain_list.data();
+			info.pImageIndices = indice_list.data();
+			auto result_list = Container<VkResult>(info.swapchainCount);
+			info.pResults = result_list.data();
+			Check(vkQueuePresentKHR(**this, &info));
+			return result_list;
+		}
+	};
+	using Queue = _Queue<delete_wrap_ptr<VkQueue,DevicePtr>>;
+	using QueuePtr = shared_pointer<Queue>;
+
 	template<class Base>
 	class _Device : public Base {
 	public:
 		using Base::Base;
-		/*削除処理をする必要がない為そのままキューポインタを返す。*/
-		VkQueue getQueue(const uint32_t& family,const uint32_t& index) {
+
+		QueuePtr getQueue(DevicePtr pointer, const uint32_t& family,const uint32_t& index) {
 			VkQueue queue;
 			vkGetDeviceQueue(**this, family, index, &queue);
-			return queue;
+			return std::make_shared<Queue>(
+				queue,[](VkQueue ptr, DevicePtr logicalDevice){
+					std::cout << "Destory Queue" << std::endl;
+				},pointer
+			);
 		}
 	}; 
 	using Device = _Device<delete_wrap_ptr<VkDevice>>;
@@ -497,6 +544,31 @@ namespace cppvk {
 	using CommandBufferPtr = shared_pointer<CommandBuffer>;
 
 	template<class Base>
+	class _Fence : Base {
+		public:
+			using Base::Base;
+	};
+	using Fence = _Fence<delete_wrap_ptr<VkFence, DevicePtr>>;
+	using FencePtr = shared_pointer<Fence>;
+
+	template<class Base>
+	class _Event : Base {
+		public:
+			using Base::Base;
+	};
+	using Event = _Event<delete_wrap_ptr<VkEvent, DevicePtr>>;
+	using EventPtr = shared_pointer<Event>;
+
+	template<class Base>
+	class _Semaphore : Base {
+		public:
+			using Base::Base;
+	};
+	using Semaphore = _Semaphore<delete_wrap_ptr<VkSemaphore, DevicePtr>>;
+	using SemaphorePtr = shared_pointer<Semaphore>;
+
+
+	template<class Base>
 	class _Swapchain : Base{
 	public:
 		using Base::Base;
@@ -520,33 +592,22 @@ namespace cppvk {
 
 			return s_images;
 		}
+
+		/**
+		 * 描画対象のインデックス値を取得。
+		 */
+		uint32_t GetNextImage(FencePtr pfence, SemaphorePtr psemaphore, const uint64_t timeout) {
+
+			return this->action([&pfence, &psemaphore, timeout](VkSwapchainKHR swapchain, DevicePtr device){
+				uint32_t result;
+				Check(vkAcquireNextImageKHR(**device, **swapchain, timeout, **psemaphore, **pfence, &result));
+				return result;
+			});
+
+		}
 	};
 	using Swapchain = _Swapchain<delete_wrap_ptr<VkSwapchainKHR, DevicePtr>>;
 	using SwapchainPtr = shared_pointer<Swapchain>;
-
-	template<class Base>
-	class _Fence : Base {
-		public:
-			using Base::Base;
-	};
-	using Fence = _Fence<delete_wrap_ptr<VkFence, DevicePtr>>;
-	using FencePtr = shared_pointer<Fence>;
-
-	template<class Base>
-	class _Event : Base {
-		public:
-			using Base::Base;
-	};
-	using Event = _Event<delete_wrap_ptr<VkEvent, DevicePtr>>;
-	using EventPtr = shared_pointer<Event>;
-
-	template<class Base>
-	class _Semaphore : Base {
-		public:
-			using Base::Base;
-	};
-	using Semaphore = _Semaphore<delete_wrap_ptr<VkSemaphore, DevicePtr>>;
-	using SemaphorePtr = shared_pointer<Semaphore>;
 
 	class DeviceMemory {
 		DevicePtr device;
@@ -612,6 +673,9 @@ namespace cppvk {
 			~CommandRecord(){
 				Check(vkEndCommandBuffer(**m_pcmd));
 			}
+			void BindPipeline(PipelinePtr ppipeline, VkPipelineBindPoint bindpoint){
+				vkCmdBindPipeline(**m_pcmd, bindpoint, **ppipeline);
+			}
 		private:
 			static void* operator new(size_t size);
 			static void operator delete(void *ptr);
@@ -625,7 +689,7 @@ namespace cppvk {
 		CommandBufferPtr m_pcmd;
 		public:
 			RenderRecord(CommandBufferPtr cmd, RenderpassPtr renderpass, FramebufferPtr framebuffer,
-				VkRect2D area, std::vector<VkClearValue> values):m_pcmd(cmd){
+				VkRect2D area, std::vector<VkClearValue> values, VkSubpassContents contents):m_pcmd(cmd){
 				VkRenderPassBeginInfo info{};
 				info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 				info.pNext = VK_NULL_HANDLE;
@@ -634,10 +698,18 @@ namespace cppvk {
 				info.renderArea = area;
 				info.clearValueCount = static_cast<uint32_t>(values.size());
 				info.pClearValues = values.data();
-				vkCmdBeginRenderPass(**m_pcmd, &info, VK_SUBPASS_CONTENTS_INLINE);
+				vkCmdBeginRenderPass(**m_pcmd, &info, contents);
 			}
 			~RenderRecord(){
 				vkCmdEndRenderPass(**m_pcmd);
+			}
+			static RenderRecord CreateRenderRecord_Iniline(CommandBufferPtr cmd, RenderpassPtr renderpass, FramebufferPtr framebuffer,
+				VkRect2D area, std::vector<VkClearValue> values){
+					return RenderRecord(cmd, renderpass, framebuffer, area, values, VK_SUBPASS_CONTENTS_INLINE);
+			}
+			static RenderRecord CreateRenderRecord_SeccondCmdBuffer(CommandBufferPtr cmd, RenderpassPtr renderpass, FramebufferPtr framebuffer,
+				VkRect2D area, std::vector<VkClearValue> values){
+					return RenderRecord(cmd, renderpass, framebuffer, area, values, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
 			}
 		private:
 			static void* operator new(size_t size);
