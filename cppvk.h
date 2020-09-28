@@ -24,8 +24,28 @@
 
 
 namespace cppvk {
-	
-	/*先行宣言*/
+
+	template<class F,  class... Args> 
+		class raii {
+			F deleteFunc;
+		protected:
+			std::tuple<Args...> args;
+		public:
+			raii(F f, Args... a) : deleteFunc(f), args(a...) {}
+			virtual ~raii(){
+				if(deleteFunc) std::apply(deleteFunc, args); 
+			}
+			auto& get() const noexcept{
+				return std::get<0>(args);
+			}
+			auto&  operator*() const noexcept {
+				return get();
+			}
+		};
+
+	template <typename T>
+	struct identity {using type=T;};
+
 	struct PhyscialDeivceSet;
 
 	using ExtensionPropertiesList = std::vector< VkExtensionProperties>;
@@ -279,40 +299,6 @@ namespace cppvk {
 
 	};
 
-	/**
-	 * @brief Object to own custom deleter
-	 * 
-	 * @tparam T 管理対象。
-	 * @tparam Args Tの管理に依存するオブジェクト。
-	 */
-	template <typename T, typename... Args>
-	class delete_wrap_ptr {
-		using type = std::remove_pointer_t<T>;
-		using argsType = std::tuple<Args...>;
-		using deleteFunc = std::function<void(type*, Args...)>;
-
-		deleteFunc cleanup;
-		argsType context;
-		type* value;
-	public:
-		delete_wrap_ptr(type* item, deleteFunc func, Args... args)
-			:value(item), cleanup(func), context({ args... }) {}
-		virtual ~delete_wrap_ptr() {
-			if(cleanup == nullptr) return;
-			action(cleanup);
-		}
-		type* get()const noexcept {
-			return value;
-		}
-		type* operator*()const noexcept {
-			return get();
-		}
-		template <class F>
-		constexpr auto action(F&& f) {
-			return std::apply([&](Args ...args) {f(value, args...); }, context);
-		}
-	};
-
 	/* delete_warp_ptr を makeする為 templateで取得し*/
 	template<class Base>
 	class _Instance : public Base {
@@ -373,7 +359,7 @@ namespace cppvk {
 			return GetVkInstanceProcAddr(**this, vkDestroyDebugReportCallbackEXT);
 		}
 	};
-	using Instance = _Instance<delete_wrap_ptr<VkInstance>>;
+	using Instance = _Instance< raii < typename identity<std::function<void(VkInstance)>>::type, VkInstance>>;
 	using InstancePtr = shared_pointer <Instance>;
 
 	template<class Base>
@@ -419,21 +405,19 @@ namespace cppvk {
 			return isSupport == VK_TRUE;
 		}
 	};
-	using Surface = _Surface<delete_wrap_ptr< VkSurfaceKHR, InstancePtr>>;
+	using Surface = _Surface<raii<typename identity<std::function<void(VkSurfaceKHR, InstancePtr)>>::type, VkSurfaceKHR, InstancePtr>>;
 	using SurfacePtr = shared_pointer <Surface>;
 
 	template<class Base> class _Device;
-	using Device = _Device<delete_wrap_ptr<VkDevice>>;
+	using Device = _Device<raii<typename identity<std::function<void(VkDevice)>>::type, VkDevice>>;
 	using DevicePtr = shared_pointer<Device>;
 
-	
-	
 	template<class Base>
 	class _Fence : Base {
 		public:
 			using Base::Base;
 	};
-	using Fence = _Fence<delete_wrap_ptr<VkFence, DevicePtr>>;
+	using Fence = _Fence<raii<typename identity<std::function<void(VkFence, DevicePtr)>>::type, VkFence, DevicePtr>>;
 	using FencePtr = shared_pointer<Fence>;
 
 	template<class Base>
@@ -441,7 +425,7 @@ namespace cppvk {
 		public:
 			using Base::Base;
 	};
-	using Event = _Event<delete_wrap_ptr<VkEvent, DevicePtr>>;
+	using Event = _Event<raii<typename identity<std::function<void(VkEvent, DevicePtr)>>::type, VkEvent, DevicePtr>>;
 	using EventPtr = shared_pointer<Event>;
 
 	template<class Base>
@@ -449,7 +433,7 @@ namespace cppvk {
 		public:
 			using Base::Base;
 	};
-	using Semaphore = _Semaphore<delete_wrap_ptr<VkSemaphore, DevicePtr>>;
+	using Semaphore = _Semaphore<raii<typename identity<std::function<void(VkSemaphore, DevicePtr)>>::type, VkSemaphore, DevicePtr>>;
 	using SemaphorePtr = shared_pointer<Semaphore>;
 
 	template<class Base> 
@@ -501,7 +485,7 @@ namespace cppvk {
 			return result_list;
 		}
 	};
-	using Queue = _Queue<delete_wrap_ptr<VkQueue,DevicePtr>>;
+	using Queue = _Queue<raii<typename identity<std::function<void(VkQueue, DevicePtr)>>::type, VkQueue, DevicePtr>>;
 	using QueuePtr = shared_pointer<Queue>;
 
 	template<class Base>
@@ -513,37 +497,49 @@ namespace cppvk {
 			VkQueue queue;
 			vkGetDeviceQueue(**this, family, index, &queue);
 			return std::make_shared<Queue>(
-				queue,[](VkQueue ptr, DevicePtr logicalDevice){
+				[](VkQueue ptr, DevicePtr logicalDevice){
 					std::cout << "Destory Queue" << std::endl;
-				},pointer
+				},queue,pointer
 			);
 		}
 	}; 
-	using Device = _Device<delete_wrap_ptr<VkDevice>>;
+	using Device = _Device<raii<typename identity<std::function<void(VkDevice)>>::type, VkDevice>>;
 	using DevicePtr = shared_pointer<Device>;
 
-	using PipelinePtr = shared_pointer<delete_wrap_ptr<VkPipeline, DevicePtr>>;
-	using FramebufferPtr = shared_pointer<delete_wrap_ptr<VkFramebuffer, DevicePtr>>;
-	using PipelineLayoutPtr = shared_pointer<delete_wrap_ptr<VkPipelineLayout, DevicePtr>>;
-	using ShaderModulePtr = shared_pointer<delete_wrap_ptr<VkShaderModule, DevicePtr>>;
-	using DescriptorPoolPtr = shared_pointer<delete_wrap_ptr<VkDescriptorPool, DevicePtr>>;
-	using DebugMessengerPtr = shared_pointer < delete_wrap_ptr< VkDebugUtilsMessengerEXT, InstancePtr>>;
-	using ImageViewPtr = shared_pointer<delete_wrap_ptr<VkImageView, DevicePtr>> ;
+	using Pipeline = raii<typename identity<std::function<void(VkPipeline, DevicePtr)>>::type, VkPipeline, DevicePtr>;
+	using PipelinePtr = shared_pointer<Pipeline>;
+
+	using Framebuffer = raii<typename identity<std::function<void(VkFramebuffer, DevicePtr)>>::type, VkFramebuffer, DevicePtr>;
+	using FramebufferPtr = shared_pointer<Framebuffer>;
+
+	using PipelineLayout = raii<typename identity<std::function<void(VkPipelineLayout, DevicePtr)>>::type, VkPipelineLayout, DevicePtr>;
+	using PipelineLayoutPtr = shared_pointer<PipelineLayout>;
+
+	using ShaderModule = raii<typename identity<std::function<void(VkShaderModule, DevicePtr)>>::type, VkShaderModule, DevicePtr>;
+	using ShaderModulePtr = shared_pointer<ShaderModule>;
+
+	using DescriptorPool = raii<typename identity<std::function<void(VkDescriptorPool, DevicePtr)>>::type, VkDescriptorPool, DevicePtr>;
+	using DescriptorPoolPtr = shared_pointer<DescriptorPool>;
+
+	using DebugMessanger = raii<typename identity<std::function<void(VkDebugUtilsMessengerEXT, InstancePtr)>>::type, VkDebugUtilsMessengerEXT, InstancePtr>;
+	using DebugMessengerPtr = shared_pointer <DebugMessanger>;
+
+	using ImageView = raii<typename identity<std::function<void(VkImageView, DevicePtr)>>::type, VkImageView, DevicePtr>;
+	using ImageViewPtr = shared_pointer<ImageView> ;
 
 	template<class Base>
 	class _Image : public Base {
 	public:
 		using Base::Base;
 		VkMemoryRequirements GetMemoryRequirements() {
-			VkMemoryRequirements info = {};
-			std::function<void(VkImage, DevicePtr)> action = [&info](VkImage image, DevicePtr device) {
+			return std::apply([](VkImage image, DevicePtr device) {
+				VkMemoryRequirements info = {};
 				vkGetImageMemoryRequirements(**device, image, &info);
-			};
-			this->action(action);
-			return info;
+				return info;
+			}, Base::args);
 		}
 	};
-	using Image = _Image<delete_wrap_ptr<VkImage, DevicePtr>>;
+	using Image = _Image<raii<typename identity<std::function<void(VkImage, DevicePtr)>>::type,VkImage, DevicePtr>>;
 	using ImagePtr = shared_pointer<Image>;
 
 	template <class Base>
@@ -551,7 +547,7 @@ namespace cppvk {
 	public:
 		using Base::Base;
 	};
-	using Renderpass = _Renderpass<delete_wrap_ptr<VkRenderPass, DevicePtr>>;
+	using Renderpass = _Renderpass<raii<typename identity<std::function<void(VkRenderPass, DevicePtr)>>::type, VkRenderPass, DevicePtr>>;
 	using RenderpassPtr = shared_pointer<Renderpass>;
 
 	template<class Base>
@@ -559,26 +555,26 @@ namespace cppvk {
 	public:
 		using Base::Base;
 		void Trim(VkCommandPoolTrimFlags flags) {
-			this->action([&flags](VkCommandPool pool, DevicePtr device) {
+			std::apply([&flags](VkCommandPool pool, DevicePtr device) {
 				vkTrimCommandPool(**device, pool, flags);
-			});
+			}, Base::args);
 		}
 		void Reset(VkCommandPoolResetFlags flags) {
-			this->action([&flags](VkCommandPool pool, DevicePtr device) {
+			std::apply([&flags](VkCommandPool pool, DevicePtr device) {
 				auto err = vkResetCommandPool(**device, pool, flags);
 				Check(err); 
-			});
+			}, Base::args);
 		}
 	};	
-	using CommandPool = _CommandPool <delete_wrap_ptr<VkCommandPool, DevicePtr>>;
+	using CommandPool = _CommandPool <raii<typename identity<std::function<void(VkCommandPool, DevicePtr)>>::type, VkCommandPool, DevicePtr>>;
 	using CommandPoolPtr = shared_pointer<CommandPool>;
 
-	template<class Base = delete_wrap_ptr<VkCommandBuffer, DevicePtr>>
+	template<class Base>
 	class _CommandBuffer : public Base {
 	public:
 		using Base::Base;
 	};
-	using CommandBuffer = _CommandBuffer<delete_wrap_ptr<VkCommandBuffer, DevicePtr>>;
+	using CommandBuffer = _CommandBuffer<raii<typename identity<std::function<void(VkCommandBuffer, DevicePtr)>>::type,VkCommandBuffer, DevicePtr>>;
 	using CommandBufferPtr = shared_pointer<CommandBuffer>;
 
 	template<class Base>
@@ -586,9 +582,7 @@ namespace cppvk {
 	public:
 		using Base::Base;
 		std::vector<ImagePtr>GetImages() {
-			std::vector<ImagePtr> s_images;
-
-			this->action([&s_images](VkSwapchainKHR swapchain, DevicePtr device) {
+			return std::apply([](VkSwapchainKHR swapchain, DevicePtr device) {
 				std::vector< VkImage> images;
 				uint32_t count;
 
@@ -596,14 +590,14 @@ namespace cppvk {
 				images.resize(count);
 				vkGetSwapchainImagesKHR(**device, swapchain, &count, images.data());
 
+				std::vector<ImagePtr> s_images;
 				s_images.resize(count);
 				for(size_t i = 0; i < count; ++i) {
 					//スワップチェーンが破棄されると自動的にクリーンアップされる為、クリーンアップコードを追加する必要はありません。
-					s_images[i] = std::make_shared<Image>(images[i],	[](VkImage image, DevicePtr device) {}, device);
+					s_images[i] = std::make_shared<Image>(nullptr, images[i], device);
 				}
-			});
-
-			return s_images;
+				return s_images;
+			}, Base::args);
 		}
 
 		/**
@@ -611,15 +605,15 @@ namespace cppvk {
 		 */
 		uint32_t GetNextImage(FencePtr pfence, SemaphorePtr psemaphore, const uint64_t timeout) {
 
-			return this->action([&pfence, &psemaphore, timeout](VkSwapchainKHR swapchain, DevicePtr device){
+			return std::apply([&pfence, &psemaphore, timeout](VkSwapchainKHR swapchain, DevicePtr device){
 				uint32_t result;
 				Check(vkAcquireNextImageKHR(**device, **swapchain, timeout, **psemaphore, **pfence, &result));
 				return result;
-			});
+			}, Base::args);
 
 		}
 	};
-	using Swapchain = _Swapchain<delete_wrap_ptr<VkSwapchainKHR, DevicePtr>>;
+	using Swapchain = _Swapchain<raii<typename identity<std::function<void(VkSwapchainKHR, DevicePtr)>>::type,VkSwapchainKHR, DevicePtr>>;
 	using SwapchainPtr = shared_pointer<Swapchain>;
 
 	class DeviceMemory {
@@ -845,10 +839,11 @@ namespace cppvk {
 				VkInstance instance;
 				auto err = vkCreateInstance(&info, VK_NULL_HANDLE, &instance);
 				Check(err);
-				return std::make_shared<Instance>(instance, [](VkInstance ptr) {
+				return std::make_shared<Instance>([](VkInstance ptr) {
 					std::cout << STR(vkDestroyInstance) << std::endl;
 					vkDestroyInstance(ptr, VK_NULL_HANDLE);
-					});
+					},
+					instance);
 			}
 
 	};//InstanceBuilder
@@ -943,12 +938,12 @@ namespace cppvk {
 
 			auto err = CreateDebugUtilsMessengerEXT(**instance, &info, VK_NULL_HANDLE, &debugMsg);
 			Check(err);
-			return std::make_shared< delete_wrap_ptr<VkDebugUtilsMessengerEXT, InstancePtr>>(
-				debugMsg, 
+			return std::make_shared<DebugMessanger>(
 				[](VkDebugUtilsMessengerEXT ptr, InstancePtr ins ) {
 					std::cout << STR(vkDestroyDebugUtilsMessengerEXT) << std::endl;
 					DestroyDebugUtilsMessengerEXT(**ins, ptr, VK_NULL_HANDLE);
 				}, 
+				debugMsg, 
 				instance);
 		}
 	};//DebugMessengerPtr
@@ -1015,12 +1010,12 @@ namespace cppvk {
 			auto err = vkCreateWin32SurfaceKHR(**instance, &info, VK_NULL_HANDLE, &surface);
 			Check(err);
 
-			return std::make_shared< Surface>( 
-				surface,
+			return std::make_shared<Surface>( 
 				[](VkSurfaceKHR ptr, InstancePtr ins) {
 					std::cout << STR(vkDestroySurfaceKHR) << std::endl;
 					vkDestroySurfaceKHR(**ins, ptr, VK_NULL_HANDLE);
 				},
+				surface,
 				instance);
 		}
 	};//WinSurfaceBuilder
@@ -1129,10 +1124,12 @@ namespace cppvk {
 				auto err = vkCreateDevice(selectDevice, &info,VK_NULL_HANDLE,&logicalDevice);
 				Check(err);
 
-				return std::make_shared<Device>( logicalDevice, [](VkDevice ptr) {
+				return std::make_shared<Device>(
+				[](VkDevice ptr) {
 					std::cout << STR(vkDestroyDevice) << std::endl;
 					vkDestroyDevice(ptr,VK_NULL_HANDLE);
-				} );
+				},
+				logicalDevice);
 			}
 	};//DeviceBuilder
 
@@ -1366,11 +1363,11 @@ namespace cppvk {
 			Check(err);
 
 			return std::make_shared<Swapchain>(
-				swapchain,
 				[](VkSwapchainKHR ptr,DevicePtr device) {
 					std::cout << STR(vkDestroySwapchainKHR) << std::endl;
 					vkDestroySwapchainKHR(**device,ptr,VK_NULL_HANDLE);
 				},
+				swapchain,
 				logicalDevice);
 		}
 	};//SwapchainBuilder
@@ -1446,12 +1443,13 @@ namespace cppvk {
 			auto err = vkCreateImage(**logicalDevice, &info, VK_NULL_HANDLE, &image);
 			Check(err);
 
-			return std::make_shared<Image>
-				(image, 
+			return std::make_shared<Image>(
 				[](VkImage ptr, DevicePtr device) {
 					std::cout << STR(vkDestroyImage) << std::endl;
 					vkDestroyImage(**device, ptr, VK_NULL_HANDLE);
-				},  logicalDevice);
+				},
+				image,
+				logicalDevice);
 
 		}
 
@@ -1565,11 +1563,11 @@ namespace cppvk {
 			Check(err);
 
 			return  std::make_shared<Renderpass>(
-				renderPass,
 				[](VkRenderPass ptr, DevicePtr device) {
 					std::cout << STR(vkDestroyRenderPass) << std::endl;
 					vkDestroyRenderPass(**device, ptr, VK_NULL_HANDLE);
 				},
+				renderPass,
 				logicalDevice);
 
 		}
@@ -1615,11 +1613,11 @@ namespace cppvk {
 			Check(err);
 
 			return std::make_shared<CommandPool>(
-				cmdPool,
 				[](VkCommandPool ptr, DevicePtr device) {
 					std::cout << STR(vkDestroyCommandPool) << std::endl;
 					vkDestroyCommandPool(**device, ptr, VK_NULL_HANDLE);
 				},
+				cmdPool,
 				logicalDevice);
 		}
 	};//RenderpassBuilder
@@ -1658,7 +1656,7 @@ namespace cppvk {
 			//convert to buffer pointer
 			std::vector<CommandBufferPtr> cmdList(count);
 			for(auto i = 0; i < cmdBuffer.size(); ++i) {
-				cmdList[i] = std::make_shared<CommandBuffer>(cmdBuffer[i], nullptr, logicalDevice);
+				cmdList[i] = std::make_shared<CommandBuffer>(nullptr, cmdBuffer[i], logicalDevice);
 			}
 
 			return cmdList;
@@ -1716,12 +1714,12 @@ namespace cppvk {
 			auto err = vkCreateImageView(**logicalDevice,&info,VK_NULL_HANDLE,&view);
 			Check(err);
 
-			return std::make_shared<delete_wrap_ptr<VkImageView, DevicePtr>>(
-				view,
+			return std::make_shared<ImageView>(
 				[](VkImageView ptr, DevicePtr device) {
 					std::cout << STR(vkDestroyImageView) << std::endl;
 					vkDestroyImageView(**device, ptr, VK_NULL_HANDLE);
 				},
+				view,
 				logicalDevice);
 		}
 
@@ -1756,12 +1754,12 @@ namespace cppvk {
 			auto err = vkCreateShaderModule(**logicalDevice, &info, VK_NULL_HANDLE, &module);
 			Check(err);
 
-			return std::make_shared<delete_wrap_ptr<VkShaderModule, DevicePtr>>(
-				module,
+			return std::make_shared<ShaderModule>(
 				[](VkShaderModule ptr, DevicePtr device) {
 					std::cout << STR(vkDestroyShaderModule) << std::endl;
 					vkDestroyShaderModule(**device, ptr, VK_NULL_HANDLE);
 				},
+				module,
 				logicalDevice);
 		}
 		
@@ -1804,12 +1802,12 @@ namespace cppvk {
 			auto err = vkCreateDescriptorPool(**logicalDevice, &info, VK_NULL_HANDLE, &pool);
 			Check(err);
 
-			return std::make_shared<delete_wrap_ptr<VkDescriptorPool, DevicePtr>>(
-				pool,
+			return std::make_shared<DescriptorPool>(
 				[](VkDescriptorPool ptr, DevicePtr device) {
 					std::cout << STR(vkDestroyDescriptorPool) << std::endl;
 					vkDestroyDescriptorPool(**device, ptr, VK_NULL_HANDLE);
 				},
+				pool,
 				logicalDevice);
 		}
 
@@ -1848,12 +1846,12 @@ namespace cppvk {
 			auto err = vkCreatePipelineLayout(**logicalDevice, &info, VK_NULL_HANDLE, &layout);
 			Check(err);
 
-			return std::make_shared<delete_wrap_ptr<VkPipelineLayout, DevicePtr>>(
-				layout,
+			return std::make_shared<PipelineLayout>(
 				[](VkPipelineLayout ptr, DevicePtr device) {
 					std::cout << STR(vkDestroyPipelineLayout) << std::endl;
 					vkDestroyPipelineLayout(**device, ptr, VK_NULL_HANDLE);
 				},
+				layout,
 				logicalDevice);
 		}
 
@@ -2637,12 +2635,12 @@ namespace cppvk {
 			auto err = vkCreateGraphicsPipelines(**logicalDevice, cache, 1, &info, VK_NULL_HANDLE, &pipeline);
 			Check(err);
 
-			return std::make_shared<delete_wrap_ptr<VkPipeline, DevicePtr>>(
-				pipeline,
+			return std::make_shared<Pipeline>(
 				[](VkPipeline ptr, DevicePtr device) {
 					std::cout << STR(vkDestroyPipeline) << std::endl;
 					vkDestroyPipeline(**device, ptr, VK_NULL_HANDLE);
 				},
+				pipeline,
 				logicalDevice);
 		}
 
@@ -2706,12 +2704,12 @@ namespace cppvk {
 			auto err = vkCreateFramebuffer(**logicalDevice, &info, VK_NULL_HANDLE, &buffer);
 			Check(err);
 
-			return std::make_shared<delete_wrap_ptr<VkFramebuffer, DevicePtr>>(
-				buffer,
+			return std::make_shared<Framebuffer>(
 				[](VkFramebuffer ptr, DevicePtr device) {
 					std::cout << STR(vkDestroyFramebuffer) << std::endl;
 					vkDestroyFramebuffer(**device, ptr, VK_NULL_HANDLE);
 				},
+				buffer,
 				logicalDevice);
 		}
 
@@ -2755,11 +2753,11 @@ namespace cppvk {
 			Check(err);
 
 			return std::make_shared<Fence>(
-				fence,
 				[](VkFence ptr, DevicePtr device){
 					std::cout << STR(vkDestroyFence) << std::endl;
 					vkDestroyFence(**device, ptr, VK_NULL_HANDLE);
 				},
+				fence,
 				logicalDevice);
 		}
 
@@ -2790,11 +2788,11 @@ namespace cppvk {
 			Check(err);
 
 			return std::make_shared<Event>(
-				event,
 				[](VkEvent ptr, DevicePtr device){
 					std::cout << STR(vkDestroyEvent) << std::endl;
 					vkDestroyEvent(**device, ptr, VK_NULL_HANDLE);
 				},
+				event,
 				logicalDevice
 			);
 		}
