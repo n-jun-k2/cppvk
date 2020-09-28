@@ -25,6 +25,12 @@
 
 namespace cppvk {
 
+	/**
+	 * @brief 生成・破壊を制御する為オブジェクト
+	 * 
+	 * @tparam F 破壊処理のシグネチャ
+	 * @tparam Args 破壊処理の対象・依存オブジェクト
+	 */
 	template<class F,  class... Args> 
 		class raii {
 			F deleteFunc;
