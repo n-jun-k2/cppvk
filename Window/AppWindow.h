@@ -9,11 +9,7 @@
 
 class App;
 
-/*
-	アプリケーション用ウィンドウを作成する。
-	コンストラクタのAppにアプリケーションオブジェクトを渡し
-	アプリケーションオブジェクトの処理を行う。
-*/
+
 class AppWindow:public WindowPtr
 {
 protected:
