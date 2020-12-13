@@ -22,9 +22,9 @@ AppWindow::~AppWindow()
 
 void AppWindow::Run()
 {
-	//‰Šú‰»Ž¸”s‚·‚é‚Æfalse
+	
 	if (init())
-	{//‰Šú‰»¬Œ÷Žžˆ—
+	{
 		application->winptr = this;
 		application->Initialize();
 		

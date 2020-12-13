@@ -140,7 +140,15 @@
     <ClCompile Include="Window\AppWindow.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="cppvk.h" />
+    <ClInclude Include="cppvk\builders\builder.h" />
+    <ClInclude Include="cppvk\builders\debugutilsmessanger.h" />
+    <ClInclude Include="cppvk\builders\instance.h" />
+    <ClInclude Include="cppvk\context.h" />
+    <ClInclude Include="cppvk\objects\debugutilsmessanger.h" />
+    <ClInclude Include="cppvk\objects\instance.h" />
+    <ClInclude Include="cppvk\objects\object.h" />
+    <ClInclude Include="cppvk\physicaldeviceset.h" />
+    <ClInclude Include="cppvk\vk.h" />
     <ClInclude Include="Window\App.h" />
     <ClInclude Include="Window\AppWindow.h" />
     <ClInclude Include="Window\WindowPtr.h" />

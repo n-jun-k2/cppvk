@@ -3,24 +3,59 @@
   <ItemGroup>
     <ClCompile Include="Source.cpp" />
     <ClCompile Include="Window\AppWindow.cpp">
-      <Filter>WIndow</Filter>
+      <Filter>window</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="cppvk.h" />
     <ClInclude Include="Window\App.h">
-      <Filter>WIndow</Filter>
+      <Filter>window</Filter>
     </ClInclude>
     <ClInclude Include="Window\AppWindow.h">
-      <Filter>WIndow</Filter>
+      <Filter>window</Filter>
     </ClInclude>
     <ClInclude Include="Window\WindowPtr.h">
-      <Filter>WIndow</Filter>
+      <Filter>window</Filter>
+    </ClInclude>
+    <ClInclude Include="cppvk\vk.h">
+      <Filter>cppvk</Filter>
+    </ClInclude>
+    <ClInclude Include="cppvk\physicaldeviceset.h">
+      <Filter>cppvk</Filter>
+    </ClInclude>
+    <ClInclude Include="cppvk\context.h">
+      <Filter>cppvk</Filter>
+    </ClInclude>
+    <ClInclude Include="cppvk\objects\object.h">
+      <Filter>cppvk\objects</Filter>
+    </ClInclude>
+    <ClInclude Include="cppvk\builders\builder.h">
+      <Filter>cppvk\builders</Filter>
+    </ClInclude>
+    <ClInclude Include="cppvk\objects\instance.h">
+      <Filter>cppvk\objects</Filter>
+    </ClInclude>
+    <ClInclude Include="cppvk\builders\instance.h">
+      <Filter>cppvk\builders</Filter>
+    </ClInclude>
+    <ClInclude Include="cppvk\builders\debugutilsmessanger.h">
+      <Filter>cppvk\builders</Filter>
+    </ClInclude>
+    <ClInclude Include="cppvk\objects\debugutilsmessanger.h">
+      <Filter>cppvk\objects</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="WIndow">
+    <Filter Include="cppvk">
+      <UniqueIdentifier>{c8a27406-757e-4672-be1e-002e4b8c84b0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="window">
       <UniqueIdentifier>{dc1fe82d-ad6c-4c11-8e45-4b0b8fa761c8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="cppvk\objects">
+      <UniqueIdentifier>{05e14640-d8db-4164-9fe6-6c1cfef6cf67}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="cppvk\builders">
+      <UniqueIdentifier>{e55a8e67-d263-409a-97f5-2d6a42a83e1e}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>
