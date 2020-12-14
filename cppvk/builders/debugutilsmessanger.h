@@ -4,6 +4,7 @@
 #include "../context.h"
 #include "builder.h"
 #include "../objects/debugutilsmessanger.h"
+#include <stdexcept>
 
 namespace cppvk {
 
