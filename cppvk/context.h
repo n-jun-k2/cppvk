@@ -26,10 +26,10 @@ namespace cppvk {
   public:
 
     VkInstance instance = VK_NULL_HANDLE;
-    VkDebugUtilsMessengerEXT messager;
-   //VkPhysicalDevice physicaldevice;
-   //VkDevice device;
-   //VkSurfaceKHR surface;
+    VkDebugUtilsMessengerEXT messager = VK_NULL_HANDLE;
+    VkPhysicalDevice physicaldevice = VK_NULL_HANDLE;
+    VkDevice device = VK_NULL_HANDLE;
+    VkSurfaceKHR surface = VK_NULL_HANDLE;
    //VkSwapchainKHR swapchain;
    //VkRenderPass renderpass;
    //VkCommandPool commandpool;
