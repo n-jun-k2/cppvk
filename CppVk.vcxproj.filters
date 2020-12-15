@@ -43,6 +43,12 @@
     <ClInclude Include="cppvk\objects\debugutilsmessanger.h">
       <Filter>cppvk\objects</Filter>
     </ClInclude>
+    <ClInclude Include="cppvk\builders\winsurface.h">
+      <Filter>cppvk\builders</Filter>
+    </ClInclude>
+    <ClInclude Include="cppvk\objects\winsurface.h">
+      <Filter>cppvk\objects</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="cppvk">

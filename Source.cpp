@@ -7,10 +7,12 @@
 #include "cppvk/builders/builder.h"
 #include "cppvk/builders/instance.h"
 #include "cppvk/builders/debugutilsmessanger.h"
+#include "cppvk/builders/winsurface.h"
 
 #include "cppvk/objects/object.h"
 #include "cppvk/objects/instance.h"
 #include "cppvk/objects/debugutilsmessanger.h"
+#include "cppvk/objects/winsurface.h"
 
 
 #pragma warning( disable : 4505 4189)
@@ -33,12 +35,13 @@ class MyContext {
   cppvk::Context::Ptr m_ctx;
   cppvk::Instance::Ptr m_instance;
   cppvk::DebugUtilsMessenger::Ptr m_debguUtilsMessenger;
+  cppvk::WinSurface::Ptr m_surface;
 
 public:
   MyContext() = default;
   ~MyContext() = default;
 
-  void  WinInit(HWND , const uint32_t& , const uint32_t& ) {
+  void  WinInit(HWND wPtr, const uint32_t& , const uint32_t& ) {
 
     auto useDebug = true;
     auto ext = cppvk::getEnumerateInstanceExtension();
@@ -75,6 +78,10 @@ public:
       .callback(debugCallback)
       .create();
 #endif
+
+    m_surface = cppvk::WinSurfaceBuilder(m_ctx)
+      .hwnd(wPtr)
+      .create();
 
   }
 };

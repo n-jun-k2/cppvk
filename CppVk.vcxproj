@@ -143,10 +143,12 @@
     <ClInclude Include="cppvk\builders\builder.h" />
     <ClInclude Include="cppvk\builders\debugutilsmessanger.h" />
     <ClInclude Include="cppvk\builders\instance.h" />
+    <ClInclude Include="cppvk\builders\winsurface.h" />
     <ClInclude Include="cppvk\context.h" />
     <ClInclude Include="cppvk\objects\debugutilsmessanger.h" />
     <ClInclude Include="cppvk\objects\instance.h" />
     <ClInclude Include="cppvk\objects\object.h" />
+    <ClInclude Include="cppvk\objects\winsurface.h" />
     <ClInclude Include="cppvk\physicaldeviceset.h" />
     <ClInclude Include="cppvk\vk.h" />
     <ClInclude Include="Window\App.h" />
