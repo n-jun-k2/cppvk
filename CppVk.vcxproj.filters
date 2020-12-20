@@ -49,6 +49,18 @@
     <ClInclude Include="cppvk\objects\winsurface.h">
       <Filter>cppvk\objects</Filter>
     </ClInclude>
+    <ClInclude Include="cppvk\objects\device.h">
+      <Filter>cppvk\objects</Filter>
+    </ClInclude>
+    <ClInclude Include="cppvk\builders\device.h">
+      <Filter>cppvk\builders</Filter>
+    </ClInclude>
+    <ClInclude Include="cppvk\info\devicequeue.h">
+      <Filter>cppvk\info</Filter>
+    </ClInclude>
+    <ClInclude Include="cppvk\info\info.h">
+      <Filter>cppvk\info</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="cppvk">
@@ -62,6 +74,9 @@
     </Filter>
     <Filter Include="cppvk\builders">
       <UniqueIdentifier>{e55a8e67-d263-409a-97f5-2d6a42a83e1e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="cppvk\info">
+      <UniqueIdentifier>{a23493bc-08d8-4a0b-8872-471426a28315}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

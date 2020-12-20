@@ -9,12 +9,16 @@
 #include "cppvk/builders/instance.h"
 #include "cppvk/builders/debugutilsmessanger.h"
 #include "cppvk/builders/winsurface.h"
+#include "cppvk/builders/device.h"
 
 #include "cppvk/objects/object.h"
 #include "cppvk/objects/instance.h"
 #include "cppvk/objects/debugutilsmessanger.h"
 #include "cppvk/objects/winsurface.h"
+#include "cppvk/objects/device.h"
 
+#include "cppvk/info/info.h"
+#include "cppvk/info/devicequeue.h"
 
 #pragma warning( disable : 4505 4189)
 
@@ -31,12 +35,30 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 #endif
 
 
+/// <summary>
+/// Version that returns the index of find_if
+/// </summary>
+/// <typeparam name="InputIterator"></typeparam>
+/// <typeparam name="Predicate"></typeparam>
+/// <param name="first"></param>
+/// <param name="last"></param>
+/// <param name="pred"></param>
+/// <returns></returns>
+template <class InputIterator, class Predicate>
+uint32_t find_if_index(InputIterator first, InputIterator last, Predicate pred) {
+  auto itr = std::find_if(first, last, pred);
+  if (itr == last)return UINT32_MAX;
+  return static_cast<uint32_t>(std::distance(first, itr));
+}
+
+
 class MyContext {
 
   cppvk::Context::Ptr m_ctx;
   cppvk::Instance::Ptr m_instance;
   cppvk::DebugUtilsMessenger::Ptr m_debguUtilsMessenger;
   cppvk::WinSurface::Ptr m_surface;
+  cppvk::Device::Ptr m_device;
 
 public:
   MyContext() = default;
@@ -84,9 +106,34 @@ public:
       .hwnd(wPtr)
       .create();
 
-    //auto physical_device = m_instance->chooseGpu([](cppvk::PhysicalDeviceSet& device_set) {
-    //  return true;
-    //  });
+    // get physical device
+    auto physical_device = m_instance->chooseGpu([](cppvk::PhysicalDeviceSet&) {
+      return true;
+      });
+
+    // get gpu queue props
+    auto gpuQprop = physical_device.getQprops();
+    auto graphics_queue_index = find_if_index(gpuQprop.begin(), gpuQprop.end(), [](VkQueueFamilyProperties queue) {return queue.queueFlags & VK_QUEUE_GRAPHICS_BIT; });
+    if (graphics_queue_index == UINT32_MAX)
+      std::cerr << "not  find VK_QUEUE_GRAPHICS_BIT." << std::endl;
+
+    // get gpu extensions
+    auto gpuExtensions = physical_device.getExtensions();
+    dev_extension.clear();
+    for (auto&& dev_ext : gpuExtensions) {
+      dev_extension.push_back(dev_ext.extensionName);
+    }
+
+    cppvk::Priorities default_queue_priority{ 1.0f };
+
+    m_device = cppvk::DeviceBuilder(m_ctx, physical_device)
+      .addQueueInfo(
+        cppvk::DeviceQueueInfo()
+        .queuePriorities(default_queue_priority)
+        .familyIndex(graphics_queue_index))
+      .extensions(dev_extension)
+      .features({})
+      .create();
 
   }
 };

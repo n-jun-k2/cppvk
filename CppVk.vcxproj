@@ -142,10 +142,14 @@
   <ItemGroup>
     <ClInclude Include="cppvk\builders\builder.h" />
     <ClInclude Include="cppvk\builders\debugutilsmessanger.h" />
+    <ClInclude Include="cppvk\builders\device.h" />
     <ClInclude Include="cppvk\builders\instance.h" />
     <ClInclude Include="cppvk\builders\winsurface.h" />
     <ClInclude Include="cppvk\context.h" />
+    <ClInclude Include="cppvk\info\devicequeue.h" />
+    <ClInclude Include="cppvk\info\info.h" />
     <ClInclude Include="cppvk\objects\debugutilsmessanger.h" />
+    <ClInclude Include="cppvk\objects\device.h" />
     <ClInclude Include="cppvk\objects\instance.h" />
     <ClInclude Include="cppvk\objects\object.h" />
     <ClInclude Include="cppvk\objects\winsurface.h" />
