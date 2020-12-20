@@ -60,7 +60,7 @@ namespace cppvk {
       info.enabledExtensionCount = 0;
       info.ppEnabledExtensionNames = NULL;
     }
-    ~InstanceBuilder() = default;
+    ~InstanceBuilder()                                  = default;
     InstanceBuilder()                                   = delete;
     InstanceBuilder(const InstanceBuilder&)             = default;
     InstanceBuilder& operator=(const InstanceBuilder&)  = default;
@@ -72,7 +72,7 @@ namespace cppvk {
     /// </summary>
     /// <param name="name"></param>
     /// <returns>InstanceBuilder</returns>
-    InstanceBuilder applicationName(const std::string& name) {
+    InstanceBuilder& applicationName(const std::string& name) {
       appInfo.pApplicationName = name.c_str();
       return *this;
     }
@@ -82,7 +82,7 @@ namespace cppvk {
     /// </summary>
     /// <param name="name"></param>
     /// <returns></returns>
-    InstanceBuilder engineName(const std::string& name) {
+    InstanceBuilder& engineName(const std::string& name) {
       appInfo.pEngineName = name.c_str();
       return *this;
     }
@@ -93,7 +93,7 @@ namespace cppvk {
     /// </summary>
     /// <param name="version"></param>
     /// <returns></returns>
-    InstanceBuilder applicationVersion(const uint32_t version) {
+    InstanceBuilder& applicationVersion(const uint32_t version) {
       appInfo.applicationVersion = version;
       return *this;
     }
@@ -104,7 +104,7 @@ namespace cppvk {
     /// </summary>
     /// <param name="version"></param>
     /// <returns></returns>
-    InstanceBuilder engineVersion(const uint32_t version) {
+    InstanceBuilder& engineVersion(const uint32_t version) {
       appInfo.engineVersion = version;
       return *this;
     }
@@ -115,7 +115,7 @@ namespace cppvk {
     /// </summary>
     /// <param name="version"></param>
     /// <returns></returns>
-    InstanceBuilder apiVersion(const uint32_t version) {
+    InstanceBuilder& apiVersion(const uint32_t version) {
       appInfo.apiVersion = version;
       return *this;
     }
@@ -126,13 +126,18 @@ namespace cppvk {
     /// </summary>
     /// <param name="layers"></param>
     /// <returns></returns>
-    InstanceBuilder enabledLayerNames(const Names& layers) {
+    InstanceBuilder& enabledLayerNames(const Names& layers) {
       info.enabledLayerCount = static_cast<uint32_t>(layers.size());
       if (!layers.empty())info.ppEnabledLayerNames = layers.data();
       return *this;
     }
 
-    InstanceBuilder enabledLayerNames(Name&& arg) {
+    /// <summary>
+    /// ppEnabledLayerNames is a pointer to an array of enabledLayerCount null-terminated UTF-8 strings containing the names of layers to enable for the created instance. See the Layers section for further details.
+    /// </summary>
+    /// <param name="arg"></param>
+    /// <returns></returns>
+    InstanceBuilder& enabledLayerNames(Name&& arg) {
       const auto temp = std::move(arg);
       return enabledLayerNames(temp);
     }
@@ -143,13 +148,18 @@ namespace cppvk {
     /// </summary>
     /// <param name="extensions"></param>
     /// <returns></returns>
-    InstanceBuilder enabledExtensionNames(const Names& extensions) {
+    InstanceBuilder& enabledExtensionNames(const Names& extensions) {
       info.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
       if (!extensions.empty())info.ppEnabledExtensionNames = extensions.data();
       return *this;
     }
 
-    InstanceBuilder enabledExtensionNames(Names&& arg) {
+    /// <summary>
+    /// ppEnabledExtensionNames is a pointer to an array of enabledExtensionCount null-terminated UTF-8 strings containing the names of extensions to enable.
+    /// </summary>
+    /// <param name="arg"></param>
+    /// <returns></returns>
+    InstanceBuilder& enabledExtensionNames(Names&& arg) {
       const auto temp = std::move(arg);
       return enabledExtensionNames(temp);
     }
