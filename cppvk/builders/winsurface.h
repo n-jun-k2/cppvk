@@ -10,7 +10,7 @@
 namespace cppvk {
 
   /// <summary>
-  /// 
+  ///
   /// </summary>
   class WinSurfaceBuilder : public Builder {
 
@@ -18,7 +18,7 @@ namespace cppvk {
       VkWin32SurfaceCreateInfoKHR info = {};
 
       /// <summary>
-      /// 
+      ///
       /// </summary>
       virtual WinSurface* createimpl(const VkAllocationCallbacks* arg = VK_NULL_HANDLE) override {
 
@@ -51,27 +51,27 @@ namespace cppvk {
       }
 
 		  /// <summary>
-		  /// 
+		  ///
 		  /// </summary>
 		  /// <param name="item"></param>
 		  /// <returns></returns>
-      WinSurfaceBuilder hwnd(HWND item) {
+      WinSurfaceBuilder& hwnd(HWND item) {
         info.hwnd = item;
 		  	return *this;
       }
 
 		  /// <summary>
-		  /// 
+		  ///
 		  /// </summary>
 		  /// <param name="item"></param>
 		  /// <returns></returns>
-      WinSurfaceBuilder hinstance(HINSTANCE item) {
+      WinSurfaceBuilder& hinstance(HINSTANCE item) {
         info.hinstance = item;
 		  	return *this;
       }
 
 		  /// <summary>
-		  /// 
+		  ///
 		  /// </summary>
 		  /// <returns></returns>
       WinSurface::Ptr create(const VkAllocationCallbacks* callbacks = VK_NULL_HANDLE) {

@@ -9,7 +9,7 @@
 namespace cppvk {
 
   /// <summary>
-  /// 
+  ///
   /// </summary>
   class DebugUtilsMessengerBuilder : public Builder{
 
@@ -18,7 +18,7 @@ namespace cppvk {
     VkDebugUtilsMessengerCreateInfoEXT info;
 
     /// <summary>
-    /// 
+    ///
     /// </summary>
     /// <param name="instance"></param>
     /// <param name="pInfo"></param>
@@ -34,7 +34,7 @@ namespace cppvk {
     }
 
     /// <summary>
-    /// 
+    ///
     /// </summary>
     /// <param name="instance"></param>
     /// <param name="debugMessenger"></param>
@@ -46,7 +46,7 @@ namespace cppvk {
     }
 
     /// <summary>
-    /// 
+    ///
     /// </summary>
     /// <param name=""></param>
     /// <returns></returns>
@@ -78,7 +78,7 @@ namespace cppvk {
     DebugUtilsMessengerBuilder& operator=(DebugUtilsMessengerBuilder&&) = default;
 
     /// <summary>
-    /// 
+    ///
     /// </summary>
     /// <param name="ctx"></param>
     explicit DebugUtilsMessengerBuilder(cppvk::Context::Ptr ctx) : cppvk::Builder(ctx) {
@@ -92,37 +92,37 @@ namespace cppvk {
 
 
     /// <summary>
-    /// 
+    ///
     /// </summary>
     /// <param name="value"></param>
     /// <returns></returns>
-    DebugUtilsMessengerBuilder severity(VkDebugUtilsMessageSeverityFlagsEXT value) {
+    DebugUtilsMessengerBuilder& severity(VkDebugUtilsMessageSeverityFlagsEXT value) {
       info.messageSeverity = value;
       return *this;
     }
 
     /// <summary>
-    /// 
+    ///
     /// </summary>
     /// <param name="value"></param>
     /// <returns></returns>
-    DebugUtilsMessengerBuilder type(VkDebugUtilsMessageTypeFlagsEXT value) {
+    DebugUtilsMessengerBuilder& type(VkDebugUtilsMessageTypeFlagsEXT value) {
       info.messageType = value;
       return *this;
     }
 
     /// <summary>
-    /// 
+    ///
     /// </summary>
     /// <param name="value"></param>
     /// <returns></returns>
-    DebugUtilsMessengerBuilder callback(PFN_vkDebugUtilsMessengerCallbackEXT value) {
+    DebugUtilsMessengerBuilder& callback(PFN_vkDebugUtilsMessengerCallbackEXT value) {
       info.pfnUserCallback = value;
       return *this;
     }
 
     /// <summary>
-    /// 
+    ///
     /// </summary>
     /// <param name="callbacks"></param>
     /// <returns></returns>
