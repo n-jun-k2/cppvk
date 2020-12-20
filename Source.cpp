@@ -109,7 +109,7 @@ public:
     // get physical device
     auto physical_device = m_instance->chooseGpu([](cppvk::PhysicalDeviceSet& dev) {
 
-      auto prop = dev.getProps();
+      const auto& prop = dev.getProps();
 
       return prop.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU || prop.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU;
       });
@@ -136,7 +136,7 @@ public:
         .familyIndex(graphics_queue_index))
       .extensions(dev_extension)
       .layerNames(validation_layers)
-      .features({VK_FALSE})
+      .features(physical_device.getFeatures())
       .create();
 
   }
