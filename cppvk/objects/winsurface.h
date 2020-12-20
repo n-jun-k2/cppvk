@@ -9,6 +9,9 @@
 
 namespace cppvk {
 
+  /// <summary>
+  /// 
+  /// </summary>
   class WinSurface : public Object {
 
     public:

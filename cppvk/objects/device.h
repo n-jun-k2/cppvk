@@ -7,9 +7,9 @@
 
 namespace cppvk {
 
-  /**
-  * @brief
-  */
+  /// <summary>
+  /// 
+  /// </summary>
   class Device : public Object {
   public:
     using Object::Object;

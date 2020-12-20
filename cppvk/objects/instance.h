@@ -12,9 +12,10 @@
 		(TO_VKPFN(FUNCNAME))vkGetInstanceProcAddr(instance, #FUNCNAME)
 
 namespace cppvk {
-  /**
-  * @brief
-  */
+
+  /// <summary>
+  /// 
+  /// </summary>
   class Instance :public Object {
 
   public:

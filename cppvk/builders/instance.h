@@ -12,7 +12,7 @@
 namespace cppvk {
 
   /// <summary>
-  ///
+  /// Vulkan instance builder pattern
   /// </summary>
   class InstanceBuilder : public cppvk::Builder
   {
@@ -22,7 +22,7 @@ namespace cppvk {
     VkApplicationInfo appInfo;
 
     /// <summary>
-    ///
+    /// Creating an object instance
     /// </summary>
     /// <param name="callbacks"></param>
     /// <returns></returns>
@@ -165,7 +165,7 @@ namespace cppvk {
     }
 
     /// <summary>
-    ///
+    /// Create smart pointer
     /// </summary>
     /// <param name="callbacks"></param>
     /// <returns></returns>
