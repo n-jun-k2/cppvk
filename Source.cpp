@@ -71,7 +71,7 @@ public:
     auto lay = cppvk::getEnumerateInstanceLayer();
 
     cppvk::Names extensions{};
-    cppvk::Names validation_layers{ "VK_LAYER_LUNARG_standard_validation" };
+    cppvk::Names validation_layers{ "VK_LAYER_KHRONOS_validation" }; // VK_LAYER_LUNARG_standard_validation
     cppvk::Names dev_extension = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 
     for (const auto& e : ext) {
@@ -107,8 +107,11 @@ public:
       .create();
 
     // get physical device
-    auto physical_device = m_instance->chooseGpu([](cppvk::PhysicalDeviceSet&) {
-      return true;
+    auto physical_device = m_instance->chooseGpu([](cppvk::PhysicalDeviceSet& dev) {
+
+      auto prop = dev.getProps();
+
+      return prop.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU || prop.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU;
       });
 
     // get gpu queue props
@@ -132,7 +135,8 @@ public:
         .queuePriorities(default_queue_priority)
         .familyIndex(graphics_queue_index))
       .extensions(dev_extension)
-      .features({})
+      .layerNames(validation_layers)
+      .features({VK_FALSE})
       .create();
 
   }
