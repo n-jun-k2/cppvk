@@ -32,6 +32,7 @@ namespace cppvk {
 
   using Code = std::vector<char>;
   using Names = std::vector<const char*>;
+  using Priorities = std::vector<float>;
   using PresentModes = std::vector<VkPresentModeKHR>;
   using SurfaceFormats = std::vector<VkSurfaceFormatKHR>;
   using QueueCreateInfos = std::vector<VkDeviceQueueCreateInfo>;
