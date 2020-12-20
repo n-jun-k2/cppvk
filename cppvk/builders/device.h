@@ -35,6 +35,11 @@ namespace cppvk {
 
       if (auto ctx = this->context.lock()) {
 
+
+        info.queueCreateInfoCount = static_cast<uint32_t>(queueInfos.size());
+        if (!queueInfos.empty())
+          info.pQueueCreateInfos = queueInfos.data();
+
         physicaldevice.CreateDevice(&ctx->device, &info, arg);
 
         return new Device(ctx, [=](cppvk::Context& p) {
