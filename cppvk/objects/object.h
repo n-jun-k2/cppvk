@@ -30,7 +30,7 @@ namespace cppvk {
     /// </summary>
     /// <param name="ctx">vulkan context object pointer</param>
     /// <param name="destroy">Vulkan object instance deletion process</param>
-    explicit Object(cppvk::Context::Ptr ctx, cppvk::Context::DestoryFunc destroy) {
+    explicit Object(cppvk::Context::Ptr ctx, cppvk::Context::DestoryFunc destroy) :context(ctx){
       *ctx += destroy;
     }
 
