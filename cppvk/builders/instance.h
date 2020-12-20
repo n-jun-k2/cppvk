@@ -12,7 +12,7 @@
 namespace cppvk {
 
   /// <summary>
-  /// 
+  ///
   /// </summary>
   class InstanceBuilder : public cppvk::Builder
   {
@@ -22,7 +22,7 @@ namespace cppvk {
     VkApplicationInfo appInfo;
 
     /// <summary>
-    /// 
+    ///
     /// </summary>
     /// <param name="callbacks"></param>
     /// <returns></returns>
@@ -132,6 +132,11 @@ namespace cppvk {
       return *this;
     }
 
+    InstanceBuilder enabledLayerNames(Name&& arg) {
+      const auto temp = std::move(arg);
+      return enabledLayerNames(temp);
+    }
+
 
     /// <summary>
     /// ppEnabledExtensionNames is a pointer to an array of enabledExtensionCount null-terminated UTF-8 strings containing the names of extensions to enable.
@@ -144,8 +149,13 @@ namespace cppvk {
       return *this;
     }
 
+    InstanceBuilder enabledExtensionNames(Names&& arg) {
+      const auto temp = std::move(arg);
+      return enabledExtensionNames(temp);
+    }
+
     /// <summary>
-    /// 
+    ///
     /// </summary>
     /// <param name="callbacks"></param>
     /// <returns></returns>
