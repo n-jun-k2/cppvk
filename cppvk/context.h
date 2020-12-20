@@ -9,7 +9,7 @@ namespace cppvk {
   /// <summary>
   /// Vulkan context object
   /// </summary>
-  class Context {
+  class [[maybe_unused]] Context {
 
   public:
 
@@ -29,10 +29,10 @@ namespace cppvk {
     VkDebugUtilsMessengerEXT messager = VK_NULL_HANDLE;
     VkDevice device = VK_NULL_HANDLE;
     VkSurfaceKHR surface = VK_NULL_HANDLE;
-   //VkSwapchainKHR swapchain;
-   //VkRenderPass renderpass;
-   //VkCommandPool commandpool;
-   //VkPipeline pipeline;
+    VkSwapchainKHR swapchain;
+    VkRenderPass renderpass;
+    VkCommandPool commandpool;
+    VkPipeline pipeline;
 
     Context(const Context&)             = default;
     Context& operator=(const Context&)  = default;
