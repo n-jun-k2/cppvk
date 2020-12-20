@@ -3,6 +3,7 @@
 
 #include "cppvk/vk.h"
 #include "cppvk/context.h"
+#include "cppvk/physicaldeviceset.h"
 
 #include "cppvk/builders/builder.h"
 #include "cppvk/builders/instance.h"
@@ -82,6 +83,10 @@ public:
     m_surface = cppvk::WinSurfaceBuilder(m_ctx)
       .hwnd(wPtr)
       .create();
+
+    //auto physical_device = m_instance->chooseGpu([](cppvk::PhysicalDeviceSet& device_set) {
+    //  return true;
+    //  });
 
   }
 };

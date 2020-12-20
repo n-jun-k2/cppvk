@@ -32,7 +32,7 @@ namespace cppvk {
       /// Obtaining surface stats
       /// </summary>
       /// <returns></returns>
-      VkSurfaceCapabilitiesKHR GetSurfaceCapabilities(VkPhysicalDevice gpu) {
+      VkSurfaceCapabilitiesKHR GetSurfaceCapabilities() {
         return GetSurfaceCapabilities(this->context->physicaldevice);
       }
 

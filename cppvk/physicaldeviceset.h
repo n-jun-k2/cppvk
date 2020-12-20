@@ -5,7 +5,7 @@
 
 namespace cppvk {
 
-  struct PhysicalDeviceSet;
+  class PhysicalDeviceSet;
 
   /// <summary>
   ///

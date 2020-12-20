@@ -137,8 +137,8 @@ namespace cppvk {
     /// </summary>
     /// <param name="arg"></param>
     /// <returns></returns>
-    InstanceBuilder& enabledLayerNames(Name&& arg) {
-      const auto temp = std::move(arg);
+    InstanceBuilder& enabledLayerNames(Names&& arg) {
+      auto temp = std::move(arg);
       return enabledLayerNames(temp);
     }
 
@@ -160,7 +160,7 @@ namespace cppvk {
     /// <param name="arg"></param>
     /// <returns></returns>
     InstanceBuilder& enabledExtensionNames(Names&& arg) {
-      const auto temp = std::move(arg);
+      auto temp = std::move(arg);
       return enabledExtensionNames(temp);
     }
 
