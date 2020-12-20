@@ -29,14 +29,6 @@ namespace cppvk {
       }
 
       /// <summary>
-      /// Obtaining surface stats
-      /// </summary>
-      /// <returns></returns>
-      VkSurfaceCapabilitiesKHR GetSurfaceCapabilities() {
-        return GetSurfaceCapabilities(this->context->physicaldevice);
-      }
-
-      /// <summary>
       /// Display formats that can be used on the surface of physical devices
       /// </summary>
       /// <param name="gpu"></param>
@@ -48,15 +40,6 @@ namespace cppvk {
         SurfaceFormats formats(fcount);
         vkGetPhysicalDeviceSurfaceFormatsKHR(gpu, this->context->surface, &fcount, formats.data());
         return formats;
-      }
-
-
-      /// <summary>
-      /// Display formats that can be used on the surface of physical devices
-      /// </summary>
-      /// <returns></returns>
-      SurfaceFormats GetEnumerateSurfaceFormats() {
-        return GetEnumerateSurfaceFormats(this->context->physicaldevice);
       }
 
       /// <summary>
@@ -75,15 +58,6 @@ namespace cppvk {
       }
 
       /// <summary>
-      /// Present mode where the surface of the physical device can be used
-      /// Find out how to switch between frontand back screens(called Present).
-      /// </summary>
-      /// <returns></returns>
-      PresentModes GetEnumerateSurfacePresentmodes() {
-        return GetEnumerateSurfacePresentmodes(this->context->physicaldevice);
-      }
-
-      /// <summary>
       /// Check if the surface function of this device is supported.
       /// </summary>
       /// <param name="gpu"></param>
@@ -93,15 +67,6 @@ namespace cppvk {
         VkBool32 isSupport = false;
         cppvk::checkVk(vkGetPhysicalDeviceSurfaceSupportKHR(gpu, index, this->context->surface, &isSupport));
         return isSupport == VK_TRUE;
-      }
-
-      /// <summary>
-      /// Check if the surface function of this device is supported.
-      /// </summary>
-      /// <param name="index"></param>
-      /// <returns></returns>
-      bool GetPhysicalDevicceSurfaceSupportKHR(const uint32_t index) {
-        return GetPhysicalDevicceSurfaceSupportKHR(this->context->physicaldevice, index);
       }
   };
 
