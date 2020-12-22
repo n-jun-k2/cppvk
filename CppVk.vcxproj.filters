@@ -61,6 +61,12 @@
     <ClInclude Include="cppvk\info\info.h">
       <Filter>cppvk\info</Filter>
     </ClInclude>
+    <ClInclude Include="cppvk\builders\commandpool.h">
+      <Filter>cppvk\builders</Filter>
+    </ClInclude>
+    <ClInclude Include="cppvk\objects\commandpool.h">
+      <Filter>cppvk\objects</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="cppvk">

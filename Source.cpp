@@ -10,12 +10,14 @@
 #include "cppvk/builders/debugutilsmessanger.h"
 #include "cppvk/builders/winsurface.h"
 #include "cppvk/builders/device.h"
+#include "cppvk/builders/commandpool.h"
 
 #include "cppvk/objects/object.h"
 #include "cppvk/objects/instance.h"
 #include "cppvk/objects/debugutilsmessanger.h"
 #include "cppvk/objects/winsurface.h"
 #include "cppvk/objects/device.h"
+#include "cppvk/objects/commandpool.h"
 
 #include "cppvk/info/info.h"
 #include "cppvk/info/devicequeue.h"
@@ -59,6 +61,7 @@ class MyContext {
   cppvk::DebugUtilsMessenger::Ptr m_debguUtilsMessenger;
   cppvk::WinSurface::Ptr m_surface;
   cppvk::Device::Ptr m_device;
+  cppvk::CommandPool::Ptr m_commandpool;
 
 public:
   MyContext() = default;
@@ -137,6 +140,11 @@ public:
       .extensions(dev_extension)
       .layerNames(validation_layers)
       .features(physical_device.getFeatures())
+      .create();
+
+    m_commandpool = cppvk::CommandPoolBuilder(m_ctx)
+      .flags(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT)
+      .queueFamilyIndices(graphics_queue_index)
       .create();
 
   }
