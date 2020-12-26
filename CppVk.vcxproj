@@ -140,6 +140,8 @@
     <ClCompile Include="Window\AppWindow.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="cppvk\allocater\allocater.h" />
+    <ClInclude Include="cppvk\allocater\commandbuffer.h" />
     <ClInclude Include="cppvk\builders\builder.h" />
     <ClInclude Include="cppvk\builders\commandpool.h" />
     <ClInclude Include="cppvk\builders\debugutilsmessanger.h" />

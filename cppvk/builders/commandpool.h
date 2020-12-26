@@ -27,13 +27,11 @@ namespace cppvk {
 
         if (auto ctx = context.lock()){
 
-          const auto err = vkCreateCommandPool(ctx->device, &info, arg, &ctx->commandpool);
+          VkCommandPool commandpool;
+          const auto err = vkCreateCommandPool(ctx->device, &info, arg, &commandpool);
           checkVk(err);
 
-          return new cppvk::CommandPool(ctx, [=](cppvk::Context& p) {
-            std::cout << "vkDestroyCommandPool" << std::endl;
-            vkDestroyCommandPool(p.device, p.commandpool, arg);
-            });
+          return new cppvk::CommandPool(ctx, commandpool);
 
         }
 

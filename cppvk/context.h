@@ -29,10 +29,6 @@ namespace cppvk {
     VkDebugUtilsMessengerEXT messager = VK_NULL_HANDLE;
     VkDevice device = VK_NULL_HANDLE;
     VkSurfaceKHR surface = VK_NULL_HANDLE;
-    VkSwapchainKHR swapchain;
-    VkRenderPass renderpass;
-    VkCommandPool commandpool;
-    VkPipeline pipeline;
 
     Context(const Context&)             = default;
     Context& operator=(const Context&)  = default;
