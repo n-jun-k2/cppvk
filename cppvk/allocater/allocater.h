@@ -24,13 +24,9 @@ namespace cppvk {
     explicit Allocater(AllocateFunc arg) : m_info({}) m_allocate(arg) {}
     virtual ~Allocater() = default;
 
-    Allocater(const Allocater&) {
-      std::cout << "copy constructor" << std::endl;
-    }
+    Allocater(const Allocater&) = default;
     Allocater& operator=(const Allocater&) = default;
-    Allocater(Allocater&&) {
-      std::cout << "move constructor" << std::endl;
-    }
+    Allocater(Allocater&&) = default;
     Allocater& operator=(Allocater&&) = default;
 
     /// <summary>
