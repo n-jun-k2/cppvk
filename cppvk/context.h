@@ -21,12 +21,17 @@ namespace cppvk {
 
     DestoryFunc destroy;
 
-    explicit Context() : destroy([](Context&) {}) {}
+    explicit Context() : destroy([](Context&) {}),
+      instance(VK_NULL_HANDLE),
+      messanger(VK_NULL_HANDLE),
+      device(VK_NULL_HANDLE),
+      surface(VK_NULL_HANDLE) {
+    }
 
   public:
 
     VkInstance instance = VK_NULL_HANDLE;
-    VkDebugUtilsMessengerEXT messager = VK_NULL_HANDLE;
+    VkDebugUtilsMessengerEXT messanger = VK_NULL_HANDLE;
     VkDevice device = VK_NULL_HANDLE;
     VkSurfaceKHR surface = VK_NULL_HANDLE;
 

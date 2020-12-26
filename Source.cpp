@@ -22,7 +22,7 @@
 #include "cppvk/info/info.h"
 #include "cppvk/info/devicequeue.h"
 
-#pragma warning( disable : 4505 4189)
+#pragma warning( disable : 4505 4189 26812)
 
 #if _DEBUG
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(

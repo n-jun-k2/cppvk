@@ -21,7 +21,7 @@ namespace cppvk {
     T m_info;
 
   public:
-    explicit Allocater(AllocateFunc arg) : m_info({}) m_allocate(arg) {}
+    explicit Allocater(AllocateFunc arg) : m_info({}), m_allocate(arg) {}
     virtual ~Allocater() = default;
 
     Allocater(const Allocater&) = default;

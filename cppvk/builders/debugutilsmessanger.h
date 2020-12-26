@@ -54,11 +54,11 @@ namespace cppvk {
 
       if (auto ctx = this->context.lock()) {
 
-        checkVk(CreateDebugUtilsMessengerEXT(ctx->instance, &info, arg, &ctx->messager));
+        checkVk(CreateDebugUtilsMessengerEXT(ctx->instance, &info, arg, &ctx->messanger));
 
         return new DebugUtilsMessenger(ctx, [=](cppvk::Context& p) {
           std::cout << "vkDestroyDebugUtilsMessengerEXT" << std::endl;
-          DestroyDebugUtilsMessengerEXT(p.instance, p.messager, arg);
+          DestroyDebugUtilsMessengerEXT(p.instance, p.messanger, arg);
         });
 
       }

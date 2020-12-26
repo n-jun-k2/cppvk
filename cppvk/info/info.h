@@ -14,7 +14,7 @@ namespace cppvk {
 
     public:
 
-      Info()                        = default;
+      Info() :info({}) {}
       virtual ~Info()               = default;
       Info(const Info&)             = default;
       Info& operator=(const Info&)  = default;
