@@ -147,6 +147,15 @@ public:
       .queueFamilyIndices(graphics_queue_index)
       .create();
 
+    m_commandpool->allocateinfo()
+      .level(VK_COMMAND_BUFFER_LEVEL_PRIMARY)
+      .commandBufferCount(1)
+      .allocate()
+      .allocateinfo()
+      .level(VK_COMMAND_BUFFER_LEVEL_PRIMARY)
+      .commandBufferCount(1)
+      .allocate();
+
   }
 };
 
