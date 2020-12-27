@@ -69,7 +69,7 @@ public:
 
   void  WinInit(HWND wPtr, const uint32_t& , const uint32_t& ) {
 
-    auto useDebug = true;
+    auto use_debug = true;
     auto ext = cppvk::getEnumerateInstanceExtension();
     auto lay = cppvk::getEnumerateInstanceLayer();
 
@@ -81,7 +81,7 @@ public:
       if (strcmp(e.extensionName, "VK_KHR_surface_protected_capabilities") != 0)
         extensions.push_back(e.extensionName);
     }
-    if (useDebug)extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+    if (use_debug)extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 
     if (!cppvk::existSupport(validation_layers, lay))
       std::cerr << "Error Validation Layers " << std::endl;
@@ -118,15 +118,16 @@ public:
       });
 
     // get gpu queue props
-    auto gpuQprop = physical_device.getQprops();
-    auto graphics_queue_index = find_if_index(gpuQprop.begin(), gpuQprop.end(), [](VkQueueFamilyProperties queue) {return queue.queueFlags & VK_QUEUE_GRAPHICS_BIT; });
+    const auto gpu_qprop = physical_device.getQprops();
+    const auto graphics_queue_index = find_if_index(gpu_qprop.begin(), gpu_qprop.end(), [](VkQueueFamilyProperties queue) {return queue.queueFlags & VK_QUEUE_GRAPHICS_BIT; });
     if (graphics_queue_index == UINT32_MAX)
       std::cerr << "not  find VK_QUEUE_GRAPHICS_BIT." << std::endl;
 
     // get gpu extensions
-    auto gpuExtensions = physical_device.getExtensions();
+    const auto gpu_extensions = physical_device.getExtensions();
+    // set device extensions
     dev_extension.clear();
-    for (auto&& dev_ext : gpuExtensions) {
+    for (auto&& dev_ext : gpu_extensions) {
       dev_extension.push_back(dev_ext.extensionName);
     }
 
@@ -148,10 +149,6 @@ public:
       .create();
 
     m_commandpool->allocateinfo()
-      .level(VK_COMMAND_BUFFER_LEVEL_PRIMARY)
-      .commandBufferCount(1)
-      .allocate()
-      .allocateinfo()
       .level(VK_COMMAND_BUFFER_LEVEL_PRIMARY)
       .commandBufferCount(1)
       .allocate();
