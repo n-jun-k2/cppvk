@@ -43,6 +43,12 @@
     <ClInclude Include="cppvk\builders\Ibuilder.h">
       <Filter>cppvk\builders</Filter>
     </ClInclude>
+    <ClInclude Include="cppvk\objects\surface.h">
+      <Filter>cppvk\objects</Filter>
+    </ClInclude>
+    <ClInclude Include="cppvk\builders\surfacebuilder.h">
+      <Filter>cppvk\builders</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="cppvk">

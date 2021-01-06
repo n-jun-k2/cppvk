@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -143,10 +143,12 @@
     <ClInclude Include="cppvk\builders\Ibuilder.h" />
     <ClInclude Include="cppvk\builders\debugutilsmessengerbuilder.h" />
     <ClInclude Include="cppvk\builders\instancebuilder.h" />
+    <ClInclude Include="cppvk\builders\surfacebuilder.h" />
     <ClInclude Include="cppvk\destroy.h" />
     <ClInclude Include="cppvk\objects\debugutilsmessenger.h" />
     <ClInclude Include="cppvk\objects\instance.h" />
     <ClInclude Include="cppvk\objects\object.h" />
+    <ClInclude Include="cppvk\objects\surface.h" />
     <ClInclude Include="cppvk\physicaldevice.h" />
     <ClInclude Include="cppvk\vk.h" />
     <ClInclude Include="Window\App.h" />

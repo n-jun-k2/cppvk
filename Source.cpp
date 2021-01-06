@@ -6,9 +6,11 @@
 
 #include "cppvk/objects/instance.h"
 #include "cppvk/objects/debugutilsmessenger.h"
+#include "cppvk/objects/surface.h"
 
 #include "cppvk/builders/instancebuilder.h"
 #include "cppvk/builders/debugutilsmessengerbuilder.h"
+#include "cppvk/builders/surfacebuilder.h"
 
 #include <set>
 
@@ -48,12 +50,13 @@ class MyContext {
 
   cppvk::Instance::pointer m_instance;
   cppvk::DebugUtilsMessenger::pointer m_debguUtilsMessenger;
+  cppvk::Surface::pointer m_surface;
 
 public:
   MyContext() = default;
   ~MyContext() = default;
 
-  void  WinInit(HWND , const uint32_t& , const uint32_t& ) {
+  void  WinInit(HWND hwnd, const uint32_t& , const uint32_t& ) {
 
     auto useDebug = true;
     auto instanceExtensions = cppvk::getEnumerateInstanceExtension();
@@ -89,6 +92,10 @@ public:
       .callback(debugCallback)
       .create();
 #endif
+
+    m_surface = cppvk::SurfaceBuilder(m_instance)
+       .hwnd(hwnd)
+      .create();
 
     const auto physicalDevice =  cppvk::PhysicalDevice::choosePhysicalDevice(m_instance, [=](cppvk::PhysicalDevice& ) {
       return true;

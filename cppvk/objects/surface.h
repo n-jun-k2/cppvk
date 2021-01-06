@@ -13,7 +13,9 @@ namespace cppvk {
       using reference = std::weak_ptr<Surface>;
       class SurfaceBuilder;
     private:
-      VkSrufaceKHR surface;
+      VkSurfaceKHR surface;
   };
+
+  using Surface = Instance::Surface;
 
 }
