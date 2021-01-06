@@ -12,7 +12,6 @@ namespace cppvk {
     public:
       class InstanceBuilder;
       class DebugUtilsMessenger;
-      class PhysicalDevice;
       class Surface;
 
       using Object::Object;

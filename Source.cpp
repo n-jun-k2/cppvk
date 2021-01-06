@@ -2,7 +2,7 @@
 #include "Window/AppWindow.h"
 
 #include "cppvk/vk.h"
-#include "cppvk/physicaldevice.h"
+#include "cppvk/physicaldevice/physicaldevice.h"
 
 #include "cppvk/objects/instance.h"
 #include "cppvk/objects/debugutilsmessenger.h"
@@ -97,7 +97,10 @@ public:
        .hwnd(hwnd)
       .create();
 
-    const auto physicalDevice =  cppvk::PhysicalDevice::choosePhysicalDevice(m_instance, [=](cppvk::PhysicalDevice& ) {
+    const auto physicalDevice =  cppvk::PhysicalDevice::choosePhysicalDevice(m_instance, [=](cppvk::PhysicalDevice& dev) {
+      const auto& prop = dev.details.properties;
+      const auto surfaceDetails = dev.getSurfaceDetails(m_surface);
+
       return true;
       });
     

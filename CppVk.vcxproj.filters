@@ -31,9 +31,6 @@
     <ClInclude Include="cppvk\builders\instancebuilder.h">
       <Filter>cppvk\builders</Filter>
     </ClInclude>
-    <ClInclude Include="cppvk\physicaldevice.h">
-      <Filter>cppvk</Filter>
-    </ClInclude>
     <ClInclude Include="cppvk\objects\debugutilsmessenger.h">
       <Filter>cppvk\objects</Filter>
     </ClInclude>
@@ -49,6 +46,15 @@
     <ClInclude Include="cppvk\builders\surfacebuilder.h">
       <Filter>cppvk\builders</Filter>
     </ClInclude>
+    <ClInclude Include="cppvk\physicaldevice\physicaldevice.h">
+      <Filter>cppvk\physicaldevice</Filter>
+    </ClInclude>
+    <ClInclude Include="cppvk\physicaldevice\physicaldevicedetails.h">
+      <Filter>cppvk\physicaldevice</Filter>
+    </ClInclude>
+    <ClInclude Include="cppvk\physicaldevice\surfacedetails.h">
+      <Filter>cppvk\physicaldevice</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="cppvk">
@@ -62,6 +68,9 @@
     </Filter>
     <Filter Include="cppvk\builders">
       <UniqueIdentifier>{0c436dc2-457f-4452-99d8-7ebf30faecd9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="cppvk\physicaldevice">
+      <UniqueIdentifier>{4b43fbf1-c13a-483d-a5fa-8033878d1cf6}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

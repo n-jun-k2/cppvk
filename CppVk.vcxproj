@@ -149,7 +149,9 @@
     <ClInclude Include="cppvk\objects\instance.h" />
     <ClInclude Include="cppvk\objects\object.h" />
     <ClInclude Include="cppvk\objects\surface.h" />
-    <ClInclude Include="cppvk\physicaldevice.h" />
+    <ClInclude Include="cppvk\physicaldevice\physicaldevice.h" />
+    <ClInclude Include="cppvk\physicaldevice\physicaldevicedetails.h" />
+    <ClInclude Include="cppvk\physicaldevice\surfacedetails.h" />
     <ClInclude Include="cppvk\vk.h" />
     <ClInclude Include="Window\App.h" />
     <ClInclude Include="Window\AppWindow.h" />

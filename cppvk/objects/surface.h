@@ -11,6 +11,7 @@ namespace cppvk {
       using Object::Object;
       using pointer = std::shared_ptr<Surface>;
       using reference = std::weak_ptr<Surface>;
+      class PhysicalDevice;
       class SurfaceBuilder;
     private:
       VkSurfaceKHR surface;
