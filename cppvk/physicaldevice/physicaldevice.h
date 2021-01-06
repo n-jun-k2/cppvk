@@ -29,7 +29,7 @@ namespace cppvk {
       class LogicalDevice;
       const PhysicalDeviceDetails details;
 
-      static PhysicalDevice choosePhysicalDevice(Instance::reference refInstance, ChoosePhysicalDeviceFunc isSuitable) {
+      static PhysicalDevice::pointer choosePhysicalDevice(Instance::reference refInstance, ChoosePhysicalDeviceFunc isSuitable) {
           if (auto pInstance = refInstance.lock())
           {
               const auto gpus = pInstance->getEnumeratePhysicalDevices();
@@ -37,9 +37,12 @@ namespace cppvk {
                   throw std::runtime_error("failed to find GPUs with vulkan support!");
 
               for (auto&& gpu : gpus) {
-                  auto dev_set = PhysicalDevice(gpu);
+                  struct _temp : public PhysicalDevice {
+                    _temp(VkPhysicalDevice _a) : PhysicalDevice(_a) {}
+                  };
+                  auto dev_set = std::make_shared<_temp>(gpu);
 
-                  if (!isSuitable(dev_set))	continue;
+                  if (!isSuitable(*dev_set))	continue;
 
                   return dev_set;
               }
@@ -48,7 +51,6 @@ namespace cppvk {
           }
           throw std::runtime_error("Vulkan context does not exist");
       }
-
 
       PhysicalDeviceSurfaceDetails getSurfaceDetails(cppvk::Surface::reference refSurface) const {
         if (auto pSurface = refSurface.lock()) {
