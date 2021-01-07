@@ -55,6 +55,18 @@
     <ClInclude Include="cppvk\physicaldevice\surfacedetails.h">
       <Filter>cppvk\physicaldevice</Filter>
     </ClInclude>
+    <ClInclude Include="cppvk\builders\logicaldevicebuilder.h">
+      <Filter>cppvk\builders</Filter>
+    </ClInclude>
+    <ClInclude Include="cppvk\objects\logicaldevice.h">
+      <Filter>cppvk\objects</Filter>
+    </ClInclude>
+    <ClInclude Include="cppvk\info\devicequeueinfo.h">
+      <Filter>cppvk\info</Filter>
+    </ClInclude>
+    <ClInclude Include="cppvk\info\info.h">
+      <Filter>cppvk\info</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="cppvk">
@@ -71,6 +83,9 @@
     </Filter>
     <Filter Include="cppvk\physicaldevice">
       <UniqueIdentifier>{4b43fbf1-c13a-483d-a5fa-8033878d1cf6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="cppvk\info">
+      <UniqueIdentifier>{a40488a0-1203-40b2-ada9-d848efaa37e0}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

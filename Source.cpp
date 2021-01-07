@@ -4,13 +4,17 @@
 #include "cppvk/vk.h"
 #include "cppvk/physicaldevice/physicaldevice.h"
 
+#include "cppvk/info/devicequeueinfo.h"
+
 #include "cppvk/objects/instance.h"
 #include "cppvk/objects/debugutilsmessenger.h"
 #include "cppvk/objects/surface.h"
+#include "cppvk/objects/logicaldevice.h"
 
 #include "cppvk/builders/instancebuilder.h"
 #include "cppvk/builders/debugutilsmessengerbuilder.h"
 #include "cppvk/builders/surfacebuilder.h"
+#include "cppvk/builders/logicaldevicebuilder.h"
 
 #include <set>
 
@@ -51,6 +55,7 @@ class MyContext {
   cppvk::Instance::pointer m_instance;
   cppvk::DebugUtilsMessenger::pointer m_debguUtilsMessenger;
   cppvk::Surface::pointer m_surface;
+  cppvk::LogicalDevice::pointer m_logicalDevice;
 
 public:
   MyContext() = default;
@@ -94,16 +99,36 @@ public:
 #endif
 
     m_surface = cppvk::SurfaceBuilder(m_instance)
-       .hwnd(hwnd)
+      .hwnd(hwnd)
       .create();
 
-    const auto physicalDevice =  cppvk::PhysicalDevice::choosePhysicalDevice(m_instance, [=](cppvk::PhysicalDevice& dev) {
+    auto physicalDevice =  cppvk::PhysicalDevice::choosePhysicalDevice(m_instance, [=](cppvk::PhysicalDevice& dev) {
       const auto& prop = dev.details.properties;
       const auto surfaceDetails = dev.getSurfaceDetails(m_surface);
 
       return true;
       });
-    
+
+    const auto graphics_queue_index = find_if_index(physicalDevice->details.queueProperties.begin(), physicalDevice->details.queueProperties.end(), [](VkQueueFamilyProperties queue) {return queue.queueFlags & VK_QUEUE_GRAPHICS_BIT; });
+    if (graphics_queue_index == UINT32_MAX)
+      std::cerr << "not  find VK_QUEUE_GRAPHICS_BIT." << std::endl;
+    cppvk::Priorities default_queue_priority{ 1.0f };
+    // set device extensions
+    devExtension.clear();
+    for (auto&& ext : physicalDevice->details.extensions) {
+      devExtension.push_back(ext.extensionName);
+    }
+
+    m_logicalDevice = cppvk::LogicalDeviceBuilder(m_instance, physicalDevice)
+      .addQueueInfo(
+        cppvk::DeviceQueueInfo()
+        .queuePriorities(default_queue_priority)
+        .familyIndex(graphics_queue_index))
+      .extensions(devExtension)
+      .layerNames(validationLayers)
+      .features(physicalDevice->details.features)
+      .create();
+
   }
 };
 
