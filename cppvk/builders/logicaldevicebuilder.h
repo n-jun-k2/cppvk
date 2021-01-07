@@ -49,7 +49,7 @@ namespace cppvk {
           vkDestroyDevice(vkDevice, arg);
         };
 
-         return pLogicalDevice;
+        return pLogicalDevice;
 
       }
 
