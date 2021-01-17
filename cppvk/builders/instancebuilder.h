@@ -7,6 +7,7 @@
 #include <string>
 #include <cassert>
 #include <stdexcept>
+#include <optional>
 
 
 namespace cppvk {
@@ -32,13 +33,13 @@ namespace cppvk {
     /// <returns></returns>
     Instance* createimpl(const VkAllocationCallbacks* callbacks = VK_NULL_HANDLE) {
 
-        auto pInstance = new Instance(cppvk::Object::pointer());
+        auto pInstance = new Instance(std::nullopt);
         pInstance->destroy = std::make_unique<Destroy>();
         auto& vkinstance = pInstance->instance;
         checkVk(vkCreateInstance(&info, callbacks, &vkinstance));
 
         *(pInstance->destroy) += [=]() {
-          std::cout << "vkDestroyInstance" << std::endl;
+          std::cout << "vkDestroyInstance : " << vkinstance << std::endl;
           vkDestroyInstance(vkinstance, callbacks);
         };
         return pInstance;

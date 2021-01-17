@@ -23,7 +23,7 @@ namespace cppvk {
         checkVk(vkCreateWin32SurfaceKHR(vkInstance, &info, arg, &vkSurface));
 
         *(pInstance->destroy) += [=]() {
-          std::cout << "vkDestroySurfaceKHR" << std::endl;
+          std::cout << "vkDestroySurfaceKHR :" << vkSurface << std::endl;
           vkDestroySurfaceKHR(vkInstance, vkSurface, arg);
         };
         return pSurface;

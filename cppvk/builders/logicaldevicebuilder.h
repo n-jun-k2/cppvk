@@ -18,7 +18,6 @@ namespace cppvk {
 
     VkDeviceCreateInfo info;
 		cppvk::QueueCreateInfos queueInfos;
-    cppvk::Instance::reference refInstance;
     cppvk::PhysicalDevice::reference refPhysicalDevice;
 
     cppvk::Names layernames;
@@ -30,27 +29,24 @@ namespace cppvk {
     /// <param name="arg"></param>
     /// <returns></returns>
     virtual cppvk::LogicalDevice* createimpl(const VkAllocationCallbacks* arg) override {
-      auto pPhysicalDevie = refPhysicalDevice.lock();
-      auto pInstance = refInstance.lock();
-      if (pPhysicalDevie && pInstance) {
+   
+      if (auto pPhysicalDevie = refPhysicalDevice.lock()) {
 
-        auto pLogicalDevice = new LogicalDevice(pInstance);
+        auto pLogicalDevice = new LogicalDevice(std::nullopt);
+        pLogicalDevice->destroy = std::make_unique<Destroy>();
         auto& vkDevice = pLogicalDevice->device;
-        auto& vkPhysicalDevice = pPhysicalDevie->physicalDevice;
 
         info.queueCreateInfoCount = static_cast<uint32_t>(queueInfos.size());
         if (!queueInfos.empty())
           info.pQueueCreateInfos = queueInfos.data();
 
-        checkVk(vkCreateDevice(vkPhysicalDevice, &info, arg, &vkDevice));
+        pPhysicalDevie->createDevice(info, arg, vkDevice);
 
-         *(pInstance->destroy) += [=]() {
-          std::cout << "vkDestroyDevice" << std::endl;
-          vkDestroyDevice(vkDevice, arg);
-        };
-
+        *(pLogicalDevice->destroy) += [=]() {
+         std::cout << "vkDestroyDevice:" << vkDevice << std::endl;
+         vkDestroyDevice(vkDevice, arg);
+       };
         return pLogicalDevice;
-
       }
 
       throw std::runtime_error("Vulkan context does not exist");
@@ -63,8 +59,8 @@ namespace cppvk {
     /// </summary>
     /// <param name="ctx"></param>
     /// <param name="dev"></param>
-    explicit LogicalDeviceBuilder(cppvk::Instance::reference _instance, cppvk::PhysicalDevice::reference _physicaldevice) :
-    refInstance(_instance), refPhysicalDevice(_physicaldevice) {
+    explicit LogicalDeviceBuilder(cppvk::PhysicalDevice::reference _physicaldevice) :
+    refPhysicalDevice(_physicaldevice) {
       info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
       info.pNext = NULL;
       info.flags = 0;

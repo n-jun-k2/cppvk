@@ -119,7 +119,7 @@ public:
       devExtension.push_back(ext.extensionName);
     }
 
-    m_logicalDevice = cppvk::LogicalDeviceBuilder(m_instance, physicalDevice)
+    m_logicalDevice = cppvk::LogicalDeviceBuilder(physicalDevice)
       .addQueueInfo(
         cppvk::DeviceQueueInfo()
         .queuePriorities(default_queue_priority)

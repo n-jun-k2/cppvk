@@ -2,6 +2,7 @@
 
 #include "../vk.h"
 #include "../destroy.h"
+#include "../variant.h"
 
 #include <memory>
 #include <functional>
@@ -18,7 +19,7 @@ namespace cppvk {
     using pointer = std::shared_ptr<Object>;
     using reference = std::weak_ptr<Object>;
 
-    explicit Object(pointer obj) : onObject(obj) { }
+    explicit Object(VkBaseVariant obj) : onObject(obj) { }
     Object() = delete;
     Object(const Object&) = default;
     Object& operator=(const Object&)  = default;
@@ -27,7 +28,7 @@ namespace cppvk {
     virtual ~Object() = default;
 
   protected:
-      pointer onObject;
+    VkBaseVariant onObject;
   };
 
 }

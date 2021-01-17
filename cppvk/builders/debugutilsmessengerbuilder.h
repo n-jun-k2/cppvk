@@ -59,7 +59,7 @@ namespace cppvk {
         checkVk(CreateDebugUtilsMessengerEXT(vkInstance, &info, arg, &vkMessenger));
 
         *(pInstance->destroy) += [=]() {
-          std::cout << "vkDestroyDebugUtilsMessengerEXT" << std::endl;
+          std::cout << "vkDestroyDebugUtilsMessengerEXT :" << vkMessenger << std::endl;
           DestroyDebugUtilsMessengerEXT(vkInstance, vkMessenger, arg);
         };
         return pDebugUtilsMessenger;

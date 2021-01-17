@@ -26,7 +26,6 @@ namespace cppvk {
       using pointer = std::shared_ptr<Surface::PhysicalDevice>;
       using reference = std::weak_ptr<Surface::PhysicalDevice>;
 
-      class LogicalDevice;
       const PhysicalDeviceDetails details;
 
       static PhysicalDevice::pointer choosePhysicalDevice(Instance::reference refInstance, ChoosePhysicalDeviceFunc isSuitable) {
@@ -57,6 +56,10 @@ namespace cppvk {
           return PhysicalDeviceSurfaceDetails(physicalDevice, pSurface->surface);
         }
         throw std::runtime_error("Surface does not exist");
+      }
+
+      void createDevice(VkDeviceCreateInfo& info, const VkAllocationCallbacks* arg, VkDevice& device) {
+        checkVk(vkCreateDevice(physicalDevice, &info, arg, &device));
       }
 
     private:
