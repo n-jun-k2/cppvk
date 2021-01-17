@@ -67,6 +67,21 @@
     <ClInclude Include="cppvk\info\info.h">
       <Filter>cppvk\info</Filter>
     </ClInclude>
+    <ClInclude Include="cppvk\allocator\allocator.h">
+      <Filter>cppvk\allocator</Filter>
+    </ClInclude>
+    <ClInclude Include="cppvk\builders\commandpoolbuilder.h">
+      <Filter>cppvk\builders</Filter>
+    </ClInclude>
+    <ClInclude Include="cppvk\objects\commandpool.h">
+      <Filter>cppvk\objects</Filter>
+    </ClInclude>
+    <ClInclude Include="cppvk\variant.h">
+      <Filter>cppvk</Filter>
+    </ClInclude>
+    <ClInclude Include="cppvk\allocator\commandbuffer.h">
+      <Filter>cppvk\allocator</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="cppvk">
@@ -86,6 +101,9 @@
     </Filter>
     <Filter Include="cppvk\info">
       <UniqueIdentifier>{a40488a0-1203-40b2-ada9-d848efaa37e0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="cppvk\allocator">
+      <UniqueIdentifier>{439fa3a0-e1e7-476e-ad9c-1aaef1a0b6ea}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

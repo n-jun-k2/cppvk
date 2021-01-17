@@ -6,15 +6,19 @@
 
 #include "cppvk/info/devicequeueinfo.h"
 
+#include "cppvk/allocator/commandbuffer.h"
+
 #include "cppvk/objects/instance.h"
 #include "cppvk/objects/debugutilsmessenger.h"
 #include "cppvk/objects/surface.h"
 #include "cppvk/objects/logicaldevice.h"
+#include "cppvk/objects/commandpool.h"
 
 #include "cppvk/builders/instancebuilder.h"
 #include "cppvk/builders/debugutilsmessengerbuilder.h"
 #include "cppvk/builders/surfacebuilder.h"
 #include "cppvk/builders/logicaldevicebuilder.h"
+#include "cppvk/builders/commandpoolbuilder.h"
 
 #include <set>
 
@@ -56,6 +60,7 @@ class MyContext {
   cppvk::DebugUtilsMessenger::pointer m_debguUtilsMessenger;
   cppvk::Surface::pointer m_surface;
   cppvk::LogicalDevice::pointer m_logicalDevice;
+  cppvk::CommandPool::pointer m_commandPool;
 
 public:
   MyContext() = default;
@@ -128,6 +133,16 @@ public:
       .layerNames(validationLayers)
       .features(physicalDevice->details.features)
       .create();
+
+    m_commandPool = cppvk::CommandPoolBuilder(m_logicalDevice)
+      .flags(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT)
+      .queueFamilyIndices(graphics_queue_index)
+      .create();
+
+    m_commandPool->getCommandBufferAllocator()
+      .level(VK_COMMAND_BUFFER_LEVEL_PRIMARY)
+      .commandBufferCount(1)
+      .allocate();
 
   }
 };
