@@ -5,6 +5,8 @@
 #include "object.h"
 #include "../physicaldevice/physicaldevice.h"
 
+#include "../allocator/devicememory.h"
+
 #include <memory>
 
 namespace cppvk {
@@ -13,8 +15,10 @@ namespace cppvk {
       using Object::Object;
       using pointer = std::shared_ptr<LogicalDevice>;
       using reference = std::weak_ptr<LogicalDevice>;
+      using AllocateInfo = cppvk::DeviceMemoryAllocate<LogicalDevice>;
       class LogicalDeviceBuilder;
       class CommandPool;
+      class Swapchain;
     private:
       VkDevice device;
       std::unique_ptr<Destroy> destroy;

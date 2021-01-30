@@ -82,6 +82,15 @@
     <ClInclude Include="cppvk\allocator\commandbuffer.h">
       <Filter>cppvk\allocator</Filter>
     </ClInclude>
+    <ClInclude Include="cppvk\objects\swapchain.h">
+      <Filter>cppvk\objects</Filter>
+    </ClInclude>
+    <ClInclude Include="cppvk\builders\swapchainbuilder.h">
+      <Filter>cppvk\builders</Filter>
+    </ClInclude>
+    <ClInclude Include="cppvk\allocator\devicememory.h">
+      <Filter>cppvk\allocator</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="cppvk">

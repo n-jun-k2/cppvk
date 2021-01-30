@@ -13,6 +13,7 @@ namespace cppvk {
       using reference = std::weak_ptr<Surface>;
       class PhysicalDevice;
       class SurfaceBuilder;
+      class PreSwapchainBuilder;
     private:
       VkSurfaceKHR surface;
   };

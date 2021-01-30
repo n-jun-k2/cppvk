@@ -13,13 +13,16 @@
 #include "cppvk/objects/surface.h"
 #include "cppvk/objects/logicaldevice.h"
 #include "cppvk/objects/commandpool.h"
+#include "cppvk/objects/swapchain.h"
 
 #include "cppvk/builders/instancebuilder.h"
 #include "cppvk/builders/debugutilsmessengerbuilder.h"
 #include "cppvk/builders/surfacebuilder.h"
 #include "cppvk/builders/logicaldevicebuilder.h"
 #include "cppvk/builders/commandpoolbuilder.h"
+#include "cppvk/builders/swapchainbuilder.h"
 
+#include <algorithm>
 #include <set>
 
 #pragma warning( disable : 4505 4189 26812)
@@ -61,6 +64,7 @@ class MyContext {
   cppvk::Surface::pointer m_surface;
   cppvk::LogicalDevice::pointer m_logicalDevice;
   cppvk::CommandPool::pointer m_commandPool;
+  cppvk::Swapchain::pointer m_swapchain;
 
 public:
   MyContext() = default;
@@ -114,6 +118,7 @@ public:
       return true;
       });
 
+    const auto surfaceDetails = physicalDevice->getSurfaceDetails(m_surface);
     const auto graphics_queue_index = find_if_index(physicalDevice->details.queueProperties.begin(), physicalDevice->details.queueProperties.end(), [](VkQueueFamilyProperties queue) {return queue.queueFlags & VK_QUEUE_GRAPHICS_BIT; });
     if (graphics_queue_index == UINT32_MAX)
       std::cerr << "not  find VK_QUEUE_GRAPHICS_BIT." << std::endl;
@@ -144,6 +149,38 @@ public:
       .commandBufferCount(1)
       .allocate();
 
+    auto suitableFormat = std::find_if(surfaceDetails.formatList.begin(), surfaceDetails.formatList.end(), [](VkSurfaceFormatKHR format) {
+      return format.format == VkFormat::VK_FORMAT_B8G8R8A8_UNORM;
+      });
+    if (suitableFormat == surfaceDetails.formatList.end())
+      std::cerr << "No suitable Surface format found." << std::endl;
+
+    auto suitablePresent = std::find_if(surfaceDetails.presentModeList.begin(), surfaceDetails.presentModeList.end(), [](VkPresentModeKHR mode) {
+      return mode == VkPresentModeKHR::VK_PRESENT_MODE_FIFO_KHR;
+      });
+    if (suitablePresent == surfaceDetails.presentModeList.end())
+      std::cerr << "No suitable present mode found." << std::endl;
+
+    cppvk::Indexs queue_family_indices = { graphics_queue_index };
+    for (auto&& indice : queue_family_indices) {
+      if (!physicalDevice->isSurfaeSupport(m_surface, indice))
+        std::cerr << "Unsupported index information." << std::endl;
+    }
+
+    m_swapchain = cppvk::SwapchainBuilder(m_surface, m_logicalDevice)
+      .minImageCount(surfaceDetails.capabilities.minImageCount)
+      .imageFormat(suitableFormat->format)
+      .imageColorSpace(suitableFormat->colorSpace)
+      .imageExtent(surfaceDetails.capabilities.currentExtent)
+      .imageSharingMode(VK_SHARING_MODE_EXCLUSIVE)
+      .imageUsage(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
+      .imageArrayLayers(1)
+      .queueFamilyIndices(queue_family_indices)
+      .presentMode(*suitablePresent)
+      .preTransform(VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR)
+      .compositeAlpha(VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR)
+      .clippedOn()
+      .create();
   }
 };
 
