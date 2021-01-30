@@ -62,6 +62,15 @@ namespace cppvk {
         checkVk(vkCreateDevice(physicalDevice, &info, arg, &device));
       }
 
+      bool isSurfaeSupport(cppvk::Surface::reference refSurface, const uint32_t index) {
+        VkBool32 isSupporte = VK_FALSE;
+        if (auto pSurface = refSurface.lock()) {
+          checkVk(vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, index, pSurface->surface, &isSupporte));
+          return isSupporte = VK_TRUE;
+        }
+        throw std::runtime_error("Surface does not exist");
+      }
+
     private:
       VkPhysicalDevice physicalDevice;
 
