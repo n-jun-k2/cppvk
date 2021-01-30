@@ -22,6 +22,7 @@ namespace cppvk {
 
     cppvk::Names layernames;
     cppvk::Names extensionnames;
+    VkPhysicalDeviceFeatures tempFeatures;
 
     /// <summary>
     /// Creating an object instance
@@ -29,7 +30,7 @@ namespace cppvk {
     /// <param name="arg"></param>
     /// <returns></returns>
     virtual cppvk::LogicalDevice* createimpl(const VkAllocationCallbacks* arg) override {
-   
+
       if (auto pPhysicalDevie = refPhysicalDevice.lock()) {
 
         auto pLogicalDevice = new LogicalDevice(std::nullopt);
@@ -43,9 +44,9 @@ namespace cppvk {
         pPhysicalDevie->createDevice(info, arg, vkDevice);
 
         *(pLogicalDevice->destroy) += [=]() {
-         std::cout << "vkDestroyDevice:" << vkDevice << std::endl;
-         vkDestroyDevice(vkDevice, arg);
-       };
+          std::cout << "vkDestroyDevice:" << vkDevice << std::endl;
+          vkDestroyDevice(vkDevice, arg);
+        };
         return pLogicalDevice;
       }
 
@@ -60,7 +61,8 @@ namespace cppvk {
     /// <param name="ctx"></param>
     /// <param name="dev"></param>
     explicit LogicalDeviceBuilder(cppvk::PhysicalDevice::reference _physicaldevice) :
-    refPhysicalDevice(_physicaldevice) {
+    refPhysicalDevice(_physicaldevice),
+      tempFeatures({}) {
       info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
       info.pNext = NULL;
       info.flags = 0;
@@ -147,8 +149,8 @@ namespace cppvk {
     /// <param name="arg"></param>
     /// <returns></returns>
     LogicalDeviceBuilder& features(VkPhysicalDeviceFeatures&& arg) {
-      auto temp = std::move(arg);
-      return features(temp);
+      tempFeatures = std::move(arg);
+      return features(tempFeatures);
     }
 
 		/// <summary>
