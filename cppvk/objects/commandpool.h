@@ -21,8 +21,8 @@ namespace cppvk {
         if (this->onObject) {
           auto pDevice = std::get<1>(this->onObject.value());
           freeBuffer(pDevice->device);
+        }
       }
-    }
 
       AllocateInfo getCommandBufferAllocator() {
 
