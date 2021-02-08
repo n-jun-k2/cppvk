@@ -36,7 +36,7 @@ namespace cppvk {
         info.flags = 0;
         info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        info.tiling = VK_IMAGE_TILING_OPTIMAL
+        info.tiling = VK_IMAGE_TILING_OPTIMAL;
       }
 
       cppvk::Image::pointer create(const VkAllocationCallbacks* callbacks = VK_NULL_HANDLE) {
