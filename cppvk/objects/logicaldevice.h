@@ -19,6 +19,7 @@ namespace cppvk {
       class LogicalDeviceBuilder;
       class CommandPool;
       class Swapchain;
+      class Image;
     private:
       VkDevice device;
       std::unique_ptr<Destroy> destroy;

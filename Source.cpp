@@ -14,6 +14,7 @@
 #include "cppvk/objects/logicaldevice.h"
 #include "cppvk/objects/commandpool.h"
 #include "cppvk/objects/swapchain.h"
+#include "cppvk/objects/image.h"
 
 #include "cppvk/builders/instancebuilder.h"
 #include "cppvk/builders/debugutilsmessengerbuilder.h"
@@ -21,6 +22,7 @@
 #include "cppvk/builders/logicaldevicebuilder.h"
 #include "cppvk/builders/commandpoolbuilder.h"
 #include "cppvk/builders/swapchainbuilder.h"
+#include "cppvk/builders/imagebuilder.h"
 
 #include <algorithm>
 #include <set>
@@ -65,6 +67,8 @@ class MyContext {
   cppvk::LogicalDevice::pointer m_logicalDevice;
   cppvk::CommandPool::pointer m_commandPool;
   cppvk::Swapchain::pointer m_swapchain;
+
+  cppvk::Image::pointer m_depthImage;
 
 public:
   MyContext() = default;
@@ -181,6 +185,24 @@ public:
       .compositeAlpha(VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR)
       .clippedOn()
       .create();
+
+    VkExtent3D depthExtent = {};
+    depthExtent.depth = 1;
+    depthExtent.width = surfaceDetails.capabilities.currentExtent.width;
+    depthExtent.height = surfaceDetails.capabilities.currentExtent.height;
+
+    m_depthImage = cppvk::ImageBuilder(m_logicalDevice)
+      .tiling(VK_IMAGE_TILING_OPTIMAL)
+      .sharingMode(VK_SHARING_MODE_EXCLUSIVE)
+      .imageType(VK_IMAGE_TYPE_2D)
+      .format(VK_FORMAT_D32_SFLOAT)
+      .extent(depthExtent)
+      .mipLevels(1)
+      .usage(VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
+      .samples(VK_SAMPLE_COUNT_1_BIT)
+      .arrayLayers(1)
+      .create();
+
   }
 };
 

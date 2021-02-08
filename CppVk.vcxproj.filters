@@ -91,6 +91,12 @@
     <ClInclude Include="cppvk\allocator\devicememory.h">
       <Filter>cppvk\allocator</Filter>
     </ClInclude>
+    <ClInclude Include="cppvk\objects\image.h">
+      <Filter>cppvk\objects</Filter>
+    </ClInclude>
+    <ClInclude Include="cppvk\builders\imagebuilder.h">
+      <Filter>cppvk\builders</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="cppvk">
