@@ -12,8 +12,8 @@
 
 namespace cppvk {
 
-  class Surface::PreSwapchainBuilder : public IBuilder {
-    protected:
+  class PreSwapchainBuilder {
+    private:
       VkSwapchainCreateInfoKHR info;
       cppvk::LogicalDevice::reference object;
 

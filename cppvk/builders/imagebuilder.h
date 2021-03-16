@@ -4,11 +4,14 @@
 #include "../objects/image.h"
 #include "Ibuilder.h"
 
+#include "../allocator/devicememory.h"
+
 namespace cppvk {
-  class Image::ImageBuilder : public cppvk::IBuilder {
+  class ImageBuilder {
     private:
       VkImageCreateInfo info;
       cppvk::LogicalDevice::reference refLogicalDevice;
+
 
       virtual cppvk::Image* createimpl(const VkAllocationCallbacks* arg) override {
         if(auto pLogicalDevice = refLogicalDevice.lock()){

@@ -1,51 +1,27 @@
 #pragma once
 
 #include "../vk.h"
-#include "../objects/object.h"
-#include "../objects/instance.h"
-#include "../objects/surface.h"
-#include "Ibuilder.h"
+#include "../type.h"
+#include "../pointer.h"
 
 namespace cppvk {
 
-  class Surface::SurfaceBuilder : public IBuilder {
+  class SurfaceBuilder :
+    Noncopyable, Nondynamicallocation {
   private:
-    VkWin32SurfaceCreateInfoKHR  info;
-    Instance::reference object;
-
-    virtual cppvk::Surface* createimpl(const VkAllocationCallbacks* arg) override {
-
-      if (auto pInstance = this->object.lock())
-      {
-        auto pSurface = new cppvk::Surface(pInstance);
-        auto& vkInstance = pInstance->instance;
-        auto& vkSurface = pSurface->surface;
-        checkVk(vkCreateWin32SurfaceKHR(vkInstance, &info, arg, &vkSurface));
-
-        *(pInstance->destroy) += [=]() {
-          std::cout << "vkDestroySurfaceKHR :" << vkSurface << std::endl;
-          vkDestroySurfaceKHR(vkInstance, vkSurface, arg);
-        };
-        return pSurface;
-      }
-
-      throw std::runtime_error("Vulkan context does not exist");
-    }
+    InstanceRef m_refInstance;
+    VkWin32SurfaceCreateInfoKHR  m_info;
 
   public:
 
     SurfaceBuilder() = delete;
-    SurfaceBuilder(const SurfaceBuilder&) = default;
-    SurfaceBuilder& operator=(const SurfaceBuilder&) = default;
-    SurfaceBuilder(SurfaceBuilder&&) = default;
-    SurfaceBuilder& operator=(SurfaceBuilder&&) = default;
     ~SurfaceBuilder() = default;
 
-    explicit SurfaceBuilder(cppvk::Instance::reference refInstance) : object(refInstance) {
-      info.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-      info.hinstance = GetModuleHandle(nullptr);
-      info.pNext = NULL;
-      info.flags = 0;
+    explicit SurfaceBuilder(cppvk::InstanceRef refInstance) : m_refInstance(refInstance) {
+      m_info.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+      m_info.hinstance = GetModuleHandle(nullptr);
+      m_info.pNext = NULL;
+      m_info.flags = 0;
     }
 
     /// <summary>
@@ -54,7 +30,7 @@ namespace cppvk {
     /// <param name="item"></param>
     /// <returns></returns>
     SurfaceBuilder& hwnd(HWND item) {
-      info.hwnd = item;
+      m_info.hwnd = item;
       return *this;
     }
 
@@ -64,20 +40,24 @@ namespace cppvk {
     /// <param name="item"></param>
     /// <returns></returns>
     SurfaceBuilder& hinstance(HINSTANCE item) {
-      info.hinstance = item;
+      m_info.hinstance = item;
       return *this;
     }
 
     /// <summary>
-    /// 
+    ///
     /// </summary>
     /// <param name="callbacks"></param>
     /// <returns></returns>
-    typename cppvk::Instance::Surface::pointer create(const VkAllocationCallbacks* callbacks = VK_NULL_HANDLE){
-      return Surface::pointer(this->createimpl(callbacks));
+    cppvk::SurfacePtr create(const VkAllocationCallbacks* callbacks = VK_NULL_HANDLE){
+      if (auto pInstance = m_refInstance.lock())
+      {
+        VkSurfaceKHR vkSurface;
+        checkVk(vkCreateWin32SurfaceKHR(pInstance.get(), &m_info, callbacks, &vkSurface));
+        return SurfacePtr(vkSurface, SurfacerDeleter(pInstance, callbacks));
+      } else {
+        throw std::runtime_error("Failed to create Surface");
+      }
     }
-
   };
-
-  using SurfaceBuilder = Surface::SurfaceBuilder;
 }

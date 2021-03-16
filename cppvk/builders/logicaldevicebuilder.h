@@ -1,9 +1,10 @@
 #pragma once
 
 #include "../vk.h"
-#include "../builders\Ibuilder.h"
-#include "../physicaldevice/physicaldevice.h"
-#include "../objects/logicaldevice.h"
+#include "../type.h"
+#include "../pointer.h"
+#include "../deleter/deleter.h"
+#include "../info/devicequeueinfo.h"
 #include <iostream>
 #include <stdexcept>
 
@@ -12,63 +13,35 @@ namespace cppvk {
   /// <summary>
   /// Logical device builder pattern
   /// </summary>
-  class LogicalDevice::LogicalDeviceBuilder : public IBuilder {
+  class LogicalDeviceBuilder :
+  Noncopyable, Nondynamicallocation {
 
   private:
 
-    VkDeviceCreateInfo info;
-		cppvk::QueueCreateInfos queueInfos;
-    cppvk::PhysicalDevice::reference refPhysicalDevice;
+    VkDeviceCreateInfo m_info;
+    VkPhysicalDevice m_physicalDevice;
 
     cppvk::Names layernames;
     cppvk::Names extensionnames;
     VkPhysicalDeviceFeatures tempFeatures;
 
-    /// <summary>
-    /// Creating an object instance
-    /// </summary>
-    /// <param name="arg"></param>
-    /// <returns></returns>
-    virtual cppvk::LogicalDevice* createimpl(const VkAllocationCallbacks* arg) override {
-
-      if (auto pPhysicalDevie = refPhysicalDevice.lock()) {
-
-        auto pLogicalDevice = new LogicalDevice(std::nullopt);
-        pLogicalDevice->destroy = std::make_unique<Destroy>();
-        auto& vkDevice = pLogicalDevice->device;
-
-        info.queueCreateInfoCount = static_cast<uint32_t>(queueInfos.size());
-        if (!queueInfos.empty())
-          info.pQueueCreateInfos = queueInfos.data();
-
-        pPhysicalDevie->createDevice(info, arg, vkDevice);
-
-        *(pLogicalDevice->destroy) += [=]() {
-          std::cout << "vkDestroyDevice:" << vkDevice << std::endl;
-          vkDestroyDevice(vkDevice, arg);
-        };
-        return pLogicalDevice;
-      }
-
-      throw std::runtime_error("Vulkan context does not exist");
-    }
-
   public:
 
+    LogicalDeviceBuilder() = delete;
+
     /// <summary>
-    ///
+    /// LogicalDeviceBuilder constructor
     /// </summary>
-    /// <param name="ctx"></param>
-    /// <param name="dev"></param>
-    explicit LogicalDeviceBuilder(cppvk::PhysicalDevice::reference _physicaldevice) :
-    refPhysicalDevice(_physicaldevice),
+    /// <param name="physicaldevice"></param>
+    explicit LogicalDeviceBuilder(const VkPhysicalDevice physicaldevice) :
+      m_physicalDevice(physicaldevice),
       tempFeatures({}) {
-      info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-      info.pNext = NULL;
-      info.flags = 0;
-      info.queueCreateInfoCount = 0;
-      info.enabledLayerCount = 0;
-      info.enabledExtensionCount = 0;
+      m_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+      m_info.pNext = NULL;
+      m_info.flags = 0;
+      m_info.queueCreateInfoCount = 0;
+      m_info.enabledLayerCount = 0;
+      m_info.enabledExtensionCount = 0;
     }
 
     /// <summary>
@@ -76,20 +49,11 @@ namespace cppvk {
     /// </summary>
     /// <param name="callbacks"></param>
     /// <returns></returns>
-    cppvk::LogicalDevice::pointer create(const VkAllocationCallbacks* callbacks = VK_NULL_HANDLE) {
-      return LogicalDevice::pointer(this->createimpl(callbacks));
+    cppvk::DevicePtr create(const VkAllocationCallbacks* callbacks = VK_NULL_HANDLE) {
+      VkDevice vkDevice;
+      vkCreateDevice(m_physicalDevice, &m_info, callbacks, &vkDevice);
+      return DevicePtr(vkDevice, LogicalDeviceDeleter(callbacks));
     }
-
-    ~LogicalDeviceBuilder() {
-      for (auto queue : queueInfos) {
-        delete[] queue.pQueuePriorities;
-      }
-    }
-    LogicalDeviceBuilder()                                 = delete;
-    LogicalDeviceBuilder(const LogicalDeviceBuilder&)             = default;
-    LogicalDeviceBuilder& operator=(const LogicalDeviceBuilder&)  = default;
-    LogicalDeviceBuilder(LogicalDeviceBuilder&&)                  = default;
-    LogicalDeviceBuilder& operator=(LogicalDeviceBuilder&&)       = default;
 
 		/// <summary>
 		///
@@ -97,8 +61,8 @@ namespace cppvk {
 		/// <param name="layers"></param>
 		/// <returns></returns>
 		LogicalDeviceBuilder& layerNames(const Names& arg) {
-			info.enabledLayerCount = static_cast<uint32_t>(arg.size());
-			if(!arg.empty())info.ppEnabledLayerNames = arg.data();
+			m_info.enabledLayerCount = static_cast<uint32_t>(arg.size());
+			if(!arg.empty())m_info.ppEnabledLayerNames = arg.data();
 			return *this;
 		}
 
@@ -118,8 +82,8 @@ namespace cppvk {
 		/// <param name="arg"></param>
 		/// <returns></returns>
 		LogicalDeviceBuilder& extensions(const Names& arg) {
-			info.enabledExtensionCount = static_cast<uint32_t>(arg.size());
-			if(!arg.empty())info.ppEnabledExtensionNames = arg.data();
+			m_info.enabledExtensionCount = static_cast<uint32_t>(arg.size());
+			if(!arg.empty())m_info.ppEnabledExtensionNames = arg.data();
 			return *this;
 		}
 
@@ -139,7 +103,7 @@ namespace cppvk {
 		/// <param name="arg"></param>
 		/// <returns></returns>
 		LogicalDeviceBuilder& features(const VkPhysicalDeviceFeatures& arg) {
-			info.pEnabledFeatures = &arg;
+			m_info.pEnabledFeatures = &arg;
 			return *this;
 		}
 
@@ -153,28 +117,14 @@ namespace cppvk {
       return features(tempFeatures);
     }
 
-		/// <summary>
-		///
-		/// </summary>
-		/// <param name="qinfo"></param>
-		/// <returns></returns>
-		LogicalDeviceBuilder& addQueueInfo(const VkDeviceQueueCreateInfo& qinfo) {
-			queueInfos.push_back(qinfo);
-			return *this;
-		}
-
-    /// <summary>
-    ///
-    /// </summary>
-    /// <param name="qinfo"></param>
-    /// <returns></returns>
-    LogicalDeviceBuilder& addQueueInfo(VkDeviceQueueCreateInfo&& qinfo) {
-      queueInfos.push_back(std::move(qinfo));
+    template < template<typename E, typename Allocator = std::allocator<E>>class Container>
+    LogicalDeviceBuilder& queueCreateInfos(const DeviceQueueCreateInfoList<Container>& arg) {
+      m_info.queueCreateInfoCount = static_cast<uint32_t>(arg.row.size());
+      if (!arg.row.empty())
+        m_info.pQueueCreateInfos = arg.row.data();
       return *this;
     }
 
   };
-
-  using LogicalDeviceBuilder = LogicalDevice::LogicalDeviceBuilder;
 
 }

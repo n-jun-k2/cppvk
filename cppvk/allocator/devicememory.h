@@ -9,8 +9,8 @@ namespace cppvk {
   template <typename T>
   class DeviceMemoryAllocate : public cppvk::Allocater<T, VkMemoryAllocateInfo> {
     public:
-      explicit DeviceMemoryAllocate(const uint32_t memoryCount, typename cppvk::Allocater<T, VkMemoryAllocateInfo>::AllocateFunc& arg)
-        : memoryTypeCount(memoryCount), cppvk::Allocater<T, VkMemoryAllocateInfo>(arg) {
+      explicit DeviceMemoryAllocate(typename cppvk::Allocater<T, VkMemoryAllocateInfo>::AllocateFunc& arg)
+        : cppvk::Allocater<T, VkMemoryAllocateInfo>(arg) {
         this->m_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
         this->m_info.pNext = VK_NULL_HANDLE;
       }
@@ -35,8 +35,5 @@ namespace cppvk {
         this->m_info.memoryTypeIndex = index;
         return *this;
       }
-
-    private:
-      const uint32_t memoryTypeCount;
   };
 }

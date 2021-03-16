@@ -1,35 +1,48 @@
 #pragma once
 
 #include "../vk.h"
-#include "allocator.h"
+#include "../type.h"
+#include "../pointer.h"
+#include "../deleter/deleter.h"
 
 namespace cppvk {
 
-  template<typename T>
-  class CommandBufferAllocate : public cppvk::Allocater<T, VkCommandBufferAllocateInfo> {
-
+  template<size_t Length>
+  class CommandBufferAllocate :
+  Noncopyable, Nondynamicallocation{
+  private:
+    VkCommandBufferAllocateInfo m_info;
+    DeviceRef m_refDevice;
+    CommandPoolRef m_refCommandPool;
   public:
 
-    explicit CommandBufferAllocate(typename cppvk::Allocater<T, VkCommandBufferAllocateInfo>::AllocateFunc& arg)
-      : cppvk::Allocater<T, VkCommandBufferAllocateInfo>(arg) {
-      this->m_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-      this->m_info.pNext = VK_NULL_HANDLE;
+    explicit CommandBufferAllocate(DeviceRef refDevice) : m_refDevice(refDevice){
+      m_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+      m_info.pNext = VK_NULL_HANDLE;
+      m_info.commandBufferCount = Length;
     }
-
     ~CommandBufferAllocate() = default;
-    CommandBufferAllocate(const CommandBufferAllocate&) = default;
-    CommandBufferAllocate& operator=(const CommandBufferAllocate&) = default;
-    CommandBufferAllocate(CommandBufferAllocate&&) = default;
-    CommandBufferAllocate& operator=(CommandBufferAllocate&&) = default;
 
     CommandBufferAllocate& level(const VkCommandBufferLevel& level) {
-      this->m_info.level = level;
+      m_info.level = level;
       return *this;
     }
 
-    CommandBufferAllocate& commandBufferCount(const uint32_t& count) {
-      this->m_info.commandBufferCount = count;
+    CommandBufferAllocate& commandPool(CommandPoolRef refCommandPool) {
+      m_refCommandPool = refCommandPool;
       return *this;
+    }
+
+    CommandBufferPtr<Length> allocate() {
+      auto pCmdPool = this->m_refCommandPool.lock();
+      auto pDevice = this->m_refDevice.lock();
+      if (pDevice && pCmdPool ) {
+        this->m_info.commandPool = pCmdPool.get();
+        auto buffer = new std::array<VkCommandBuffer, Length> { VK_NULL_HANDLE };
+        cppvk::checkVk(vkAllocateCommandBuffers(pDevice.get(), &m_info, buffer->data()));
+        return CommandBufferPtr<Length>(buffer, cppvk::CommandBufferDeleter<Length>(std::make_shared<deivce_and_commandpool>(pDevice, pCmdPool), VK_NULL_HANDLE));
+      }
+      throw std::runtime_error("Failed to create CommandBuffers");
     }
 
   };

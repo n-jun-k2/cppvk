@@ -1,13 +1,11 @@
 #pragma once
 
 #include "../vk.h"
-#include "Ibuilder.h"
-#include "../objects/instance.h"
+#include "../type.h"
+#include "../pointer.h"
+#include "../deleter/deleter.h"
 
-#include <string>
-#include <cassert>
-#include <stdexcept>
-#include <optional>
+#include <memory>
 
 
 namespace cppvk {
@@ -15,8 +13,8 @@ namespace cppvk {
   /// <summary>
   /// Vulkan instance builder pattern
   /// </summary>
-  class Instance::InstanceBuilder : public cppvk::IBuilder
-  {
+  class InstanceBuilder :
+    Noncopyable, Nondynamicallocation {
 
   private:
     VkInstanceCreateInfo info;
@@ -26,24 +24,6 @@ namespace cppvk {
     Names tempEnabledLayers;
     Names tempEnabledExtensions;
 
-    /// <summary>
-    /// Creating an object instance
-    /// </summary>
-    /// <param name="callbacks"></param>
-    /// <returns></returns>
-    Instance* createimpl(const VkAllocationCallbacks* callbacks = VK_NULL_HANDLE) {
-
-        auto pInstance = new Instance(std::nullopt);
-        pInstance->destroy = std::make_unique<Destroy>();
-        auto& vkinstance = pInstance->instance;
-        checkVk(vkCreateInstance(&info, callbacks, &vkinstance));
-
-        *(pInstance->destroy) += [=]() {
-          std::cout << "vkDestroyInstance : " << vkinstance << std::endl;
-          vkDestroyInstance(vkinstance, callbacks);
-        };
-        return pInstance;
-    }
 
   public:
 
@@ -52,11 +32,13 @@ namespace cppvk {
     /// </summary>
     /// <param name="callbacks"></param>
     /// <returns></returns>
-    Instance::pointer create(const VkAllocationCallbacks* callbacks = VK_NULL_HANDLE) {
-      return Instance::pointer(this->createimpl(callbacks));
+    InstancePtr create(const VkAllocationCallbacks* callbacks = VK_NULL_HANDLE) {
+      VkInstance vkinstance;
+      checkVk(vkCreateInstance(&info, callbacks, &vkinstance));
+      return InstancePtr(vkinstance, InstanceDeleter(callbacks));
     }
 
-    InstanceBuilder() : cppvk::IBuilder() {
+    explicit InstanceBuilder() {
       appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
       appInfo.pNext = VK_NULL_HANDLE;
       appInfo.pApplicationName = NULL;
@@ -73,10 +55,6 @@ namespace cppvk {
 
     }
     ~InstanceBuilder() = default;
-    InstanceBuilder(const InstanceBuilder&) = default;
-    InstanceBuilder& operator=(const InstanceBuilder&)  = default;
-    InstanceBuilder(InstanceBuilder&&) = default;
-    InstanceBuilder& operator=(InstanceBuilder&&) = default;
 
     /// <summary>
     ///  pApplicationName is NULL or is a pointer to a null-terminated UTF-8 string containing the name of the application.
@@ -177,5 +155,4 @@ namespace cppvk {
 
   };//InstanceBuilder
 
-  using InstanceBuilder = Instance::InstanceBuilder;
 }
