@@ -68,12 +68,11 @@ namespace cppvk {
     /// </summary>
     /// <param name="callbacks"></param>
     /// <returns></returns>
-    DebugUtilsMessengerPtr create(const VkAllocationCallbacks* callbacks = VK_NULL_HANDLE) {
+    DebugUtilsMessengerPtr create(AllocationCallbacksPtr callbacks = nullptr) {
       if (DebugUtilsMessengerDeleter::base_type_pointer pInstance = m_refInstance.lock()) {
         VkDebugUtilsMessengerEXT vkMessenger;
-        checkVk(CreateDebugUtilsMessengerEXT(pInstance.get(), &m_info, callbacks, &vkMessenger));
-        auto deleter = DebugUtilsMessengerDeleter(pInstance, callbacks);
-        return DebugUtilsMessengerPtr(vkMessenger, deleter);
+        checkVk(CreateDebugUtilsMessengerEXT(pInstance.get(), &m_info, callbacks ? callbacks.get() : VK_NULL_HANDLE, &vkMessenger));
+        return DebugUtilsMessengerPtr(vkMessenger, DebugUtilsMessengerDeleter(pInstance, callbacks));
       }
       else {
         throw std::runtime_error("Failed to create DebugUtilsMessenger");

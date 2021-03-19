@@ -32,9 +32,9 @@ namespace cppvk {
     /// </summary>
     /// <param name="callbacks"></param>
     /// <returns></returns>
-    InstancePtr create(const VkAllocationCallbacks* callbacks = VK_NULL_HANDLE) {
+    InstancePtr create(AllocationCallbacksPtr callbacks = nullptr) {
       VkInstance vkinstance;
-      checkVk(vkCreateInstance(&info, callbacks, &vkinstance));
+      checkVk(vkCreateInstance(&info, callbacks ? callbacks.get() : VK_NULL_HANDLE, &vkinstance));
       return InstancePtr(vkinstance, InstanceDeleter(callbacks));
     }
 

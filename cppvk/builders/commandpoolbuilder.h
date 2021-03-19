@@ -22,11 +22,11 @@ namespace cppvk {
     }
     CommandPoolBuilder() = delete;
 
-    CommandPoolPtr create(const VkAllocationCallbacks* callbacks = VK_NULL_HANDLE) {
+    CommandPoolPtr create(AllocationCallbacksPtr callbacks = nullptr) {
       if (auto pLogicalDevice = this->m_refDevice.lock()) {
         VkCommandPool vkCommandPool;
-        checkVk(vkCreateCommandPool(pLogicalDevice.get(), &m_info, callbacks, &vkCommandPool));
-        return CommandPoolPtr(vkCommandPool, cppvk::CommandPoolDeleter(pLogicalDevice, callbacks));
+        checkVk(vkCreateCommandPool(pLogicalDevice.get(), &m_info, callbacks ? callbacks.get() : VK_NULL_HANDLE, &vkCommandPool));
+        return CommandPoolPtr(vkCommandPool, CommandPoolDeleter(pLogicalDevice, callbacks));
       } else {
         throw std::runtime_error("Failed to create CommandPool");
       }

@@ -49,11 +49,11 @@ namespace cppvk {
     /// </summary>
     /// <param name="callbacks"></param>
     /// <returns></returns>
-    cppvk::SurfacePtr create(const VkAllocationCallbacks* callbacks = VK_NULL_HANDLE){
+    cppvk::SurfacePtr create(AllocationCallbacksPtr callbacks = nullptr){
       if (auto pInstance = m_refInstance.lock())
       {
         VkSurfaceKHR vkSurface;
-        checkVk(vkCreateWin32SurfaceKHR(pInstance.get(), &m_info, callbacks, &vkSurface));
+        checkVk(vkCreateWin32SurfaceKHR(pInstance.get(), &m_info, callbacks ? callbacks.get() : VK_NULL_HANDLE, &vkSurface));
         return SurfacePtr(vkSurface, SurfacerDeleter(pInstance, callbacks));
       } else {
         throw std::runtime_error("Failed to create Surface");

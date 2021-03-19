@@ -35,4 +35,7 @@ namespace cppvk {
 
   using SwapchainPtr = pointer<VkSwapchainKHR>;
   using SwapchainRef = reference<VkSwapchainKHR>;
+
+  using AllocationCallbacksPtr = pointer<VkAllocationCallbacks>;
+  using AllocationCallbacksRef = reference<VkAllocationCallbacks>;
 }

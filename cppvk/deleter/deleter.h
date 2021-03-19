@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../vk.h"
+#include "../pointer.h"
 #include <array>
 #include <memory>
 
@@ -12,11 +13,11 @@ namespace cppvk {
       using type = std::remove_pointer_t<T>;
       using pointer = type*;
       _deleter() = delete;
-      explicit _deleter(const VkAllocationCallbacks* callbacks) : m_callbacks(callbacks) {}
+      explicit _deleter(AllocationCallbacksPtr callbacks) : m_callbacks(callbacks) {}
       ~_deleter() = default;
       virtual void operator()(pointer ptr)  = 0;
     protected:
-      const VkAllocationCallbacks* m_callbacks;
+      AllocationCallbacksPtr m_callbacks;
   };
 
   class InstanceDeleter:public _deleter<VkInstance>{
@@ -24,7 +25,7 @@ namespace cppvk {
       using _deleter::_deleter;
       virtual void operator()(pointer ptr)  override{
         std::cout << "vkDestroyInstance" << std::endl;
-        vkDestroyInstance(ptr, m_callbacks);
+        vkDestroyInstance(ptr, m_callbacks ? m_callbacks.get() : VK_NULL_HANDLE);
       }
   };
 
@@ -33,7 +34,7 @@ namespace cppvk {
       using _deleter::_deleter;
       virtual void operator()(pointer ptr)  override{
         std::cout << "vkDestroyDevice" << std::endl;
-        vkDestroyDevice(ptr, m_callbacks);
+        vkDestroyDevice(ptr, m_callbacks ? m_callbacks.get() : VK_NULL_HANDLE);
       }
   };
 
@@ -43,7 +44,7 @@ namespace cppvk {
       using base_type = std::remove_pointer_t<T_BASE>;
       using base_type_pointer = std::shared_ptr<base_type>;
       _sub_deleter() = delete;
-      explicit _sub_deleter(base_type_pointer pParent, const VkAllocationCallbacks* callbacks)
+      explicit _sub_deleter(base_type_pointer pParent, AllocationCallbacksPtr callbacks)
         : _deleter<T>::_deleter(callbacks), m_pparent(pParent){}
       ~_sub_deleter() = default;
     protected:
@@ -57,7 +58,7 @@ namespace cppvk {
       virtual void operator()(pointer ptr)  override {
         auto instance = m_pparent.get();
         std::cout << "DestroyDebugUtilsMessengerEXT" << std::endl;
-        DestroyDebugUtilsMessengerEXT(instance, ptr, m_callbacks);
+        DestroyDebugUtilsMessengerEXT(instance, ptr, m_callbacks ? m_callbacks.get() : VK_NULL_HANDLE);
       }
   };
 
@@ -68,7 +69,7 @@ namespace cppvk {
     virtual void operator()(pointer ptr)  override {
       auto instance = m_pparent.get();
       std::cout << "vkDestroySurfaceKHR" << std::endl;
-      vkDestroySurfaceKHR(instance, ptr, m_callbacks);
+      vkDestroySurfaceKHR(instance, ptr, m_callbacks ? m_callbacks.get() : VK_NULL_HANDLE);
     }
   };
 
@@ -79,7 +80,18 @@ namespace cppvk {
     virtual void operator()(pointer ptr) override {
       auto device = m_pparent.get();
       std::cout << "vkDestroyCommandPool" << std::endl;
-      vkDestroyCommandPool(device, ptr, m_callbacks);
+      vkDestroyCommandPool(device, ptr, m_callbacks ? m_callbacks.get() : VK_NULL_HANDLE);
+    }
+  };
+
+  class SwapchainDeleter
+    : public _sub_deleter <VkSwapchainKHR, VkDevice> {
+  public:
+    using _sub_deleter::_sub_deleter;
+    virtual void operator()(pointer ptr) override {
+      auto device = m_pparent.get();
+      std::cout << "vkDestroySwapchainKHR" << std::endl;
+      vkDestroySwapchainKHR(device, ptr, m_callbacks ? m_callbacks.get() : VK_NULL_HANDLE);
     }
   };
 

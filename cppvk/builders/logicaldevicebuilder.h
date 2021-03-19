@@ -49,9 +49,9 @@ namespace cppvk {
     /// </summary>
     /// <param name="callbacks"></param>
     /// <returns></returns>
-    cppvk::DevicePtr create(const VkAllocationCallbacks* callbacks = VK_NULL_HANDLE) {
+    cppvk::DevicePtr create(AllocationCallbacksPtr callbacks = nullptr) {
       VkDevice vkDevice;
-      vkCreateDevice(m_physicalDevice, &m_info, callbacks, &vkDevice);
+      vkCreateDevice(m_physicalDevice, &m_info, callbacks ? callbacks.get() : VK_NULL_HANDLE, &vkDevice);
       return DevicePtr(vkDevice, LogicalDeviceDeleter(callbacks));
     }
 
