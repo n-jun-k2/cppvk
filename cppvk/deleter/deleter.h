@@ -24,7 +24,6 @@ namespace cppvk {
     public:
       using _deleter::_deleter;
       virtual void operator()(pointer ptr)  override{
-        std::cout << "vkDestroyInstance" << std::endl;
         vkDestroyInstance(ptr, m_callbacks ? m_callbacks.get() : VK_NULL_HANDLE);
       }
   };
@@ -33,7 +32,6 @@ namespace cppvk {
     public:
       using _deleter::_deleter;
       virtual void operator()(pointer ptr)  override{
-        std::cout << "vkDestroyDevice" << std::endl;
         vkDestroyDevice(ptr, m_callbacks ? m_callbacks.get() : VK_NULL_HANDLE);
       }
   };
@@ -57,7 +55,6 @@ namespace cppvk {
       using _sub_deleter::_sub_deleter;
       virtual void operator()(pointer ptr)  override {
         auto instance = m_pparent.get();
-        std::cout << "DestroyDebugUtilsMessengerEXT" << std::endl;
         DestroyDebugUtilsMessengerEXT(instance, ptr, m_callbacks ? m_callbacks.get() : VK_NULL_HANDLE);
       }
   };
@@ -68,7 +65,6 @@ namespace cppvk {
     using _sub_deleter::_sub_deleter;
     virtual void operator()(pointer ptr)  override {
       auto instance = m_pparent.get();
-      std::cout << "vkDestroySurfaceKHR" << std::endl;
       vkDestroySurfaceKHR(instance, ptr, m_callbacks ? m_callbacks.get() : VK_NULL_HANDLE);
     }
   };
@@ -79,7 +75,6 @@ namespace cppvk {
     using _sub_deleter::_sub_deleter;
     virtual void operator()(pointer ptr) override {
       auto device = m_pparent.get();
-      std::cout << "vkDestroyCommandPool" << std::endl;
       vkDestroyCommandPool(device, ptr, m_callbacks ? m_callbacks.get() : VK_NULL_HANDLE);
     }
   };
@@ -90,8 +85,16 @@ namespace cppvk {
     using _sub_deleter::_sub_deleter;
     virtual void operator()(pointer ptr) override {
       auto device = m_pparent.get();
-      std::cout << "vkDestroySwapchainKHR" << std::endl;
       vkDestroySwapchainKHR(device, ptr, m_callbacks ? m_callbacks.get() : VK_NULL_HANDLE);
+    }
+  };
+
+  class ImageDeleter : public _sub_deleter<VkImage, VkDevice> {
+    public:
+    using _sub_deleter::_sub_deleter;
+    virtual void operator()(pointer ptr) override {
+      auto device = m_pparent.get();
+      vkDestroyImage(device, ptr, m_callbacks ? m_callbacks.get() : VK_NULL_HANDLE);
     }
   };
 
@@ -108,7 +111,6 @@ namespace cppvk {
     virtual void operator()(typename  _cmd_sub_deleter<_L>::pointer ptr) override {
       auto device = this->m_pparent->first.get();
       auto cmdPool = this->m_pparent->second.get();
-      std::cout << "vkFreeCommandBuffers" << std::endl;
       vkFreeCommandBuffers(device, cmdPool, _L, ptr->data());
     }
   };
