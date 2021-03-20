@@ -89,6 +89,16 @@ namespace cppvk {
     }
   };
 
+  class DeviceMemoryDeleter :
+  public _sub_deleter<VkDeviceMemory, VkDevice> {
+    public:
+      using _sub_deleter::_sub_deleter;
+      virtual void operator()(pointer ptr) override {
+        auto device = m_pparent.get();
+        vkFreeMemory(device, ptr, m_callbacks ? m_callbacks.get() : VK_NULL_HANDLE);
+      }
+  };
+
   class ImageDeleter : public _sub_deleter<VkImage, VkDevice> {
     public:
     using _sub_deleter::_sub_deleter;
@@ -98,6 +108,14 @@ namespace cppvk {
     }
   };
 
+  class ImageViewDeleter : public _sub_deleter<VkImageView, VkDevice> {
+    public:
+    using _sub_deleter::_sub_deleter;
+    virtual void operator()(pointer ptr) override {
+      auto device = m_pparent.get();
+      vkDestroyImageView(device, ptr, m_callbacks ? m_callbacks.get() : VK_NULL_HANDLE);
+    }
+  };
 
   using deivce_and_commandpool = std::pair< pointer<VkDevice_T>, pointer<VkCommandPool_T>>;
 
@@ -114,5 +132,4 @@ namespace cppvk {
       vkFreeCommandBuffers(device, cmdPool, _L, ptr->data());
     }
   };
-
 }

@@ -25,10 +25,10 @@ namespace cppvk {
       cppvk::ImagePtr create(AllocationCallbacksPtr callbacks = nullptr) {
         if(auto pLogicalDevice = m_refLogicalDevice.lock()){
           VkImage image;
-          vkCreateImage(pLogicalDevice.get(), &m_info, callbacks ? callbacks.get() : VK_NULL_HANDLE, &image);
+          checkVk(vkCreateImage(pLogicalDevice.get(), &m_info, callbacks ? callbacks.get() : VK_NULL_HANDLE, &image));
           return ImagePtr(image, ImageDeleter(pLogicalDevice, callbacks));
         }
-        throw std::runtime_error("Vulkan context does not exist");
+        throw std::runtime_error("Failed to create Image");
       }
 
       ImageBuilder& pNext() {

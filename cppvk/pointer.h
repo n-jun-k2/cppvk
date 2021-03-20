@@ -22,6 +22,9 @@ namespace cppvk {
   using DevicePtr = pointer<VkDevice>;
   using DeviceRef = reference<VkDevice>;
 
+  using DeviceMemoryPtr = pointer<VkDeviceMemory>;
+  using DeviceMemoryRef = reference<VkDeviceMemory>;
+
   using SurfacePtr = pointer<VkSurfaceKHR>;
   using SurfaceRef = reference<VkSurfaceKHR>;
 
@@ -38,6 +41,9 @@ namespace cppvk {
 
   using ImagePtr = pointer<VkImage>;
   using ImageRef = reference<VkImage>;
+
+  using ImageViewPtr = pointer<VkImageView>;
+  using ImageViewRef = reference<VkImageView>;
 
   using AllocationCallbacksPtr = pointer<VkAllocationCallbacks>;
   using AllocationCallbacksRef = reference<VkAllocationCallbacks>;
