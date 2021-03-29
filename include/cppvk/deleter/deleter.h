@@ -117,6 +117,15 @@ namespace cppvk {
     }
   };
 
+  class ShaderModuleDeleter : public _sub_deleter<VkShaderModule, VkDevice> {
+    public:
+      using _sub_deleter::_sub_deleter;
+      virtual void operator()(pointer ptr) override {
+        auto device = m_pparent.get();
+        vkDestroyShaderModule(device, ptr, m_callbacks ? m_callbacks.get() : VK_NULL_HANDLE);
+      }
+  };
+
   using deivce_and_commandpool = std::pair< pointer<VkDevice_T>, pointer<VkCommandPool_T>>;
 
   template< std::size_t L>

@@ -31,7 +31,8 @@ namespace cppvk {
     /// </summary>
     /// <param name="priorities"></param>
     /// <returns></returns>
-    DeviceQueueCreateInfoWrapper& queuePriorities(const Priorities& priorities) {
+    template<template<typename T, typename Allocator = std::allocator<T>> class Container>
+    DeviceQueueCreateInfoWrapper& queuePriorities(const Container<float>& priorities) {
       info.queueCount = static_cast<uint32_t>(priorities.size());
       if (!priorities.empty()) { // deep copy
         info.pQueuePriorities = new float[info.queueCount];
@@ -50,7 +51,8 @@ namespace cppvk {
     /// </summary>
     /// <param name="priorities"></param>
     /// <returns></returns>
-    DeviceQueueCreateInfoWrapper& queuePriorities(Priorities&& priorities) {
+    template<template<typename T, typename Allocator = std::allocator<T>> class Container>
+    DeviceQueueCreateInfoWrapper& queuePriorities(Container<float>&& priorities) {
       auto temp = std::move(priorities);
       return queuePriorities(temp);
     }

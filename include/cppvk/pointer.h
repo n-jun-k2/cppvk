@@ -45,6 +45,9 @@ namespace cppvk {
   using ImageViewPtr = pointer<VkImageView>;
   using ImageViewRef = reference<VkImageView>;
 
+  using ShaderModulePtr = pointer<VkShaderModule>;
+  using ShaderModuleRef = reference<VkShaderModule>;
+
   using AllocationCallbacksPtr = pointer<VkAllocationCallbacks>;
   using AllocationCallbacksRef = reference<VkAllocationCallbacks>;
 }

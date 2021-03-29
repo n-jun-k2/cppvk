@@ -35,18 +35,12 @@
 namespace cppvk {
 
   using Code = std::vector<char>;
-  using Names = std::vector<const char*>;
   using Indexs = std::vector<uint32_t>;
-  using Priorities = std::vector<float>;
+  using Names = std::vector<const char*>;
   using PresentModes = std::vector<VkPresentModeKHR>;
   using SurfaceFormats = std::vector<VkSurfaceFormatKHR>;
-  using QueueCreateInfos = std::vector<VkDeviceQueueCreateInfo>;
-  using PhysicalDeviceList = std::vector<VkPhysicalDevice>;
   using LayerPropertiesList = std::vector<VkLayerProperties>;
   using ExtensionPropertiesList = std::vector<VkExtensionProperties>;
-  using PhysicalDeviceGroupList = std::vector<VkPhysicalDeviceGroupProperties>;
-  using PhysicalDeviceQueueProps = std::vector<VkQueueFamilyProperties>;
-  using IsSuitableQueuePropFuncInstanceBuilder = std::function<bool(VkQueueFamilyProperties)>;
 
 
 
@@ -140,8 +134,6 @@ namespace cppvk {
     file.seekg(0);
     file.read(buffer.data(), fileSize);
     file.close();
-
-    return buffer;
   }
 
   static bool isSurfaeSupport(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, const uint32_t index) {
@@ -178,6 +170,15 @@ namespace cppvk {
       checkVk(vkEnumerateDeviceLayerProperties(pDevice, &count, nullptr));
       validations.resize(count);
       checkVk(vkEnumerateDeviceLayerProperties(pDevice, &count, validations.data()));
+    }
+
+    uint32_t findMemoryType(uint32_t filter, VkMemoryPropertyFlags property) {
+      for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; i++) {
+        auto type = filter & (1 << i);
+        auto flag = memoryProperties.memoryTypes[i].propertyFlags & property;
+        if( type && flag == property) return i;
+      }
+      throw std::runtime_error("Failed to find memory type");
     }
   };
 
@@ -236,6 +237,11 @@ namespace cppvk {
     if (func != nullptr)func(instance, debugMessenger, pAllocator);
   }
 
+  static void extent2Dto3D(const VkExtent2D& src, VkExtent3D& dist) {
+    dist.depth = 1;
+    dist.width = src.width;
+    dist.height = src.height;
+  }
 
 }
 #pragma warning(pop)
