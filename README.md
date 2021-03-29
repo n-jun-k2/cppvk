@@ -18,13 +18,5 @@ auto surface = cppvk::WinSurfaceBuilder::get(instance)
 		    .build();
 ```
 
-## VkPhysicalDeviceProperties flow to get...
-
-```
-auto device = cppvk::helper::chooseGpu(instance,
-    [](VkPhysicalDeviceProperties props, VkPhysicalDeviceFeatures features) {
-		return //Describe the physical device selection conditions.
-	});
-```
 
 ## 
