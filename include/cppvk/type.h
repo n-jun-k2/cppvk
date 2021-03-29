@@ -31,4 +31,23 @@ namespace cppvk {
     ~UnionWrapper() {}
   };
 
+  template<typename T>
+  class Singleton : Noncopyable {
+    private:
+      static std::weak_ptr<T> instance;
+    protected:
+      Singleton()=default;
+      virtual T* createInstance()=0;
+    public:
+      virtual ~Singleton()=default;
+      static std::shared_ptr<T> getInstance() {
+        auto ptr = instance.lock();
+        if(!ptr) {
+          ptr = std::shared_ptr<T>(createInstance());
+          instance = ptr;
+        }
+        return ptr;
+      }
+  };
+
 }
