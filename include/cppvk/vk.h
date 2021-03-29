@@ -121,21 +121,6 @@ namespace cppvk {
     return _existSupport<VkLayerProperties, std::vector>(target, source, [](VkLayerProperties prop) {return prop.layerName; });
   }
 
-  template<template<typename E, typename Allocator=std::allocator<E>>typename Container>
-  static void readFile(const std::string& filePath, Container<char>& buffer) {
-    std::ifstream file(filePath, std::ios::ate | std::ios::binary);
-
-    if (!file.is_open())
-      throw std::runtime_error("failed to open file!");
-
-    auto fileSize = (size_t)file.tellg();
-    buffer.resize(fileSize);
-
-    file.seekg(0);
-    file.read(buffer.data(), fileSize);
-    file.close();
-  }
-
   static bool isSurfaeSupport(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, const uint32_t index) {
     VkBool32 isSupporte = VK_FALSE;
     checkVk(vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, index, surface, &isSupporte));
