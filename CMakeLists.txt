@@ -7,6 +7,21 @@ set(CppVkLIBS
     glfw3
 )
 
+set(GlslangValidationLIBS
+    GenericCodeGen
+    glslang
+    HLSL
+    MachineIndependent
+    OGLCompiler
+    OSDependent
+    SPIRV
+    SPIRV-Tools
+    SPIRV-Tools-opt
+    SPIRV-Tools-link
+    SPIRV-Tools-reduce
+    SPIRV-Tools-shared
+)
+
 file (
     GLOB_RECURSE
     SOURCES
@@ -32,6 +47,7 @@ add_executable(
 target_link_libraries(
     ${PROJECT_NAME} PRIVATE
     ${CppVkLIBS}
+    ${GlslangValidationLIBS}
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "/ignore:4099")

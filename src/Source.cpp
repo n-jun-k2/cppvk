@@ -17,6 +17,8 @@
 #include "cppvk/allocator/commandbuffer.h"
 #include "cppvk/allocator/devicememory.h"
 
+#include "cppvk/glslangtools.h"
+
 #include <algorithm>
 #include <set>
 #include <vector>
