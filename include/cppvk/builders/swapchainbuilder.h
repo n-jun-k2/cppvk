@@ -94,15 +94,14 @@ namespace cppvk {
       return *this;
     }
 
-    SwapchainBuilder& imageSharingMode(const VkSharingMode mode) {
-      m_info.imageSharingMode = mode;
-      return *this;
-    }
-
     template<template<typename T, class Allocate = std::allocator<T>>class Container>
     SwapchainBuilder& queueFamilyIndices(const Container<uint32_t>& pQueueFamilyIndices) {
       m_info.queueFamilyIndexCount = static_cast<uint32_t>(pQueueFamilyIndices.size());
       m_info.pQueueFamilyIndices = pQueueFamilyIndices.data();
+      if (m_info.queueFamilyIndexCount > 1)
+        m_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+      else
+        m_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
       return *this;
     }
 

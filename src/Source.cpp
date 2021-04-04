@@ -158,12 +158,35 @@ public:
       throw std::runtime_error("Physical device not found");
     }
 
-    const auto graphics_queue_index = find_if_index(begin(pPhysicalDetails->queueProperties), end(pPhysicalDetails->queueProperties),
-      [](VkQueueFamilyProperties queue) {return queue.queueFlags & VK_QUEUE_GRAPHICS_BIT; });
 
-    if (graphics_queue_index == UINT32_MAX) {
-      throw std::runtime_error("not  find VK_QUEUE_GRAPHICS_BIT.");
+    auto graphics_queue_index = UINT32_MAX;
+    auto present_queue_index = UINT32_MAX;
+    {
+      const auto queuePropertiesSize = static_cast<uint32_t>(pPhysicalDetails->queueProperties.size());
+
+      std::vector<VkBool32> supportsPresent(queuePropertiesSize);
+      for (uint32_t i = 0; i < queuePropertiesSize; ++i) supportsPresent[i] = cppvk::isSurfaeSupport(*pPhysicalDevice, m_surface.get(), i);
+
+      for (uint32_t i = 0; i < queuePropertiesSize; ++i) {
+        if((pPhysicalDetails->queueProperties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) == 0)
+          continue;
+
+        if(graphics_queue_index == UINT32_MAX) graphics_queue_index = i;
+
+        if (supportsPresent[i] == VK_TRUE) {
+          graphics_queue_index = i;
+          present_queue_index = i;
+          break;
+        }
+      }
+
+      if (present_queue_index == UINT32_MAX)
+        present_queue_index = find_if_index(std::begin(supportsPresent), std::end(supportsPresent), [](VkBool32 flag) {return flag == VK_TRUE;});
+
+      if (graphics_queue_index == UINT32_MAX || present_queue_index == UINT32_MAX)
+        throw std::runtime_error("Queue Family Index could not be found.");
     }
+
     std::vector<float> default_queue_priority{ 1.0f };
 
     // set device extensions
@@ -209,26 +232,43 @@ public:
       throw std::runtime_error( "No suitable present mode found.");
     }
 
-    cppvk::Indexs queue_family_indices = { graphics_queue_index };
-    for (auto&& indice : queue_family_indices) {
-      if (!cppvk::isSurfaeSupport(*pPhysicalDevice, m_surface.get(), indice))
-        throw std::runtime_error("Unsupported index information.");
+    cppvk::Indexs queueFamilyIndices = { graphics_queue_index, present_queue_index};
+    {
+      const auto queueFamilyIndicesSet = std::set<uint32_t>(std::begin(queueFamilyIndices), std::end(queueFamilyIndices));
+      for (auto&& indice : queueFamilyIndicesSet) {
+        if (!cppvk::isSurfaeSupport(*pPhysicalDevice, m_surface.get(), indice))
+          throw std::runtime_error("Unsupported index information.");
+      }
+      if(queueFamilyIndicesSet.size() != queueFamilyIndices.size())
+        queueFamilyIndices = cppvk::Indexs(std::begin(queueFamilyIndicesSet), std::end(queueFamilyIndicesSet));
     }
+
+    VkSurfaceTransformFlagBitsKHR preTransform = pPhysicalSurfaceDetails->capabilities.currentTransform;
+    if(preTransform & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR) preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+
+    const auto compositeAlphaFlags = std::vector<VkCompositeAlphaFlagBitsKHR> {
+        VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR,
+        VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR,
+        VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR,
+        VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+    };
+    auto compositeAlpha = std::find_if(std::begin(compositeAlphaFlags), std::end(compositeAlphaFlags), [&](VkCompositeAlphaFlagBitsKHR flags){
+      return pPhysicalSurfaceDetails->capabilities.supportedCompositeAlpha & flags;
+    });
 
     m_swapchain = cppvk::SwapchainBuilder(m_logicalDevice)
       .surface(m_surface)
       .minImageCount(pPhysicalSurfaceDetails->capabilities.minImageCount)
       .imageFormat(suitableFormat->format)
-      .imageColorSpace(suitableFormat->colorSpace)
       .imageExtent(pPhysicalSurfaceDetails->capabilities.currentExtent)
-      .imageSharingMode(VK_SHARING_MODE_EXCLUSIVE)
+      .preTransform(preTransform)
+      .compositeAlpha(*compositeAlpha)
+      .presentMode(*suitablePresent)
+      .clippedOn()
+      .imageColorSpace(suitableFormat->colorSpace)
       .imageUsage(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
       .imageArrayLayers(1)
-      .queueFamilyIndices(queue_family_indices)
-      .presentMode(*suitablePresent)
-      .preTransform(VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR)
-      .compositeAlpha(VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR)
-      .clippedOn()
+      .queueFamilyIndices(queueFamilyIndices)
       .create(m_swapchain_callbacks);
 
     cppvk::getSwapchainImagesKHR(m_logicalDevice.get(), m_swapchain.get(), m_swapchain_images);
