@@ -20,6 +20,8 @@ namespace cppvk {
         m_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         m_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
         m_info.tiling = VK_IMAGE_TILING_OPTIMAL;
+        m_info.queueFamilyIndexCount = 0;
+        m_info.pQueueFamilyIndices = nullptr;
       }
 
       cppvk::ImagePtr create(AllocationCallbacksPtr callbacks = nullptr) {

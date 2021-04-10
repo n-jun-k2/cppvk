@@ -30,7 +30,7 @@
 #include <fstream>
 #include <functional>
 #include <type_traits>
-
+#include <optional>
 
 namespace cppvk {
 
@@ -226,6 +226,24 @@ namespace cppvk {
     dist.depth = 1;
     dist.width = src.width;
     dist.height = src.height;
+  }
+
+  /// <summary>
+  /// Get the tiling corresponding to the "feature" flag.
+  /// </summary>
+  /// <param name="gpu">Opaque handle to a physical device object</param>
+  /// <param name="format">Available image formats</param>
+  /// <param name="feature">Flags expecting support</param>
+  /// <returns> VK_IMAGE_TILING_OPTIMAL or VK_IMAGE_TILING_LINEAR or std::nullopt</returns>
+  static std::optional<VkImageTiling> isLinearOrOptimal(VkPhysicalDevice gpu, const VkFormat& format, const VkFormatFeatureFlags feature) {
+    VkFormatProperties props;
+    vkGetPhysicalDeviceFormatProperties(gpu, format, &props);
+
+    if((props.optimalTilingFeatures & feature) == feature)
+      return VK_IMAGE_TILING_OPTIMAL;
+    if((props.linearTilingFeatures & feature) == feature)
+      return VK_IMAGE_TILING_LINEAR;
+    return std::nullopt;
   }
 
 }

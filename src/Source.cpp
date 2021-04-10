@@ -17,6 +17,9 @@
 #include "cppvk/allocator/commandbuffer.h"
 #include "cppvk/allocator/devicememory.h"
 
+
+#include "cppvk/imageformat.h"
+
 #include "cppvk/glslangtools.h"
 
 #include <algorithm>
@@ -70,11 +73,9 @@ class MyContext {
   std::vector<VkImage> m_swapchain_images; // no destroy
   std::vector<cppvk::ImageViewPtr> m_swapchain_iamgeViews;
 
-#if _DEPTH
   cppvk::DeviceMemoryPtr m_depthMemory;
   cppvk::ImagePtr m_depthImage;
   cppvk::ImageViewPtr m_depthImageView;
-#endif
 
   cppvk::AllocationCallbacksPtr m_instance_callbacks;
   cppvk::AllocationCallbacksPtr m_surface_callbacks;
@@ -289,34 +290,25 @@ public:
       );
     }
 
-#if _DEPTH
-
     VkExtent3D depthExtent = {};
     cppvk::extent2Dto3D(pPhysicalSurfaceDetails->capabilities.currentExtent, depthExtent);
 
-    std::vector<VkFormat> depthFormatList = {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT};
-    const auto depthFormat = std::find_if(std::begin(depthFormatList), std::end(depthFormatList), [&](decltype(depthFormatList)::const_reference format){
-      VkFormatProperties props;
-      vkGetPhysicalDeviceFormatProperties(*pPhysicalDevice, format, &props);
-
-      const VkFormatFeatureFlags target = VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT;
-      const VkFormatFeatureFlags feature = props.optimalTilingFeatures & target;
-      return feature == target;
-    });
-
-    if (depthFormat == std::end(depthFormatList)) {
-      throw std::runtime_error("No suitable DepthImage format found.");
+    const VkFormat depthFormat = VK_FORMAT_D16_UNORM;
+    auto depthImageTiling = cppvk::isLinearOrOptimal(*pPhysicalDevice, depthFormat, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+    if (!depthImageTiling){
+      throw std::runtime_error("Unsupported depth image format.");
     }
 
     m_depthImage = cppvk::ImageBuilder(m_logicalDevice)
-      .tiling(VK_IMAGE_TILING_OPTIMAL)
+      .tiling(depthImageTiling.value())
       .sharingMode(VK_SHARING_MODE_EXCLUSIVE)
       .imageType(VK_IMAGE_TYPE_2D)
-      .format(*depthFormat)
+      .format(depthFormat)
       .extent(depthExtent)
       .mipLevels(1)
       .usage(VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
       .samples(VK_SAMPLE_COUNT_1_BIT)
+      .initialLayout(VK_IMAGE_LAYOUT_UNDEFINED)
       .arrayLayers(1)
       .create();
 
@@ -335,18 +327,15 @@ public:
     m_depthImageView = cppvk::ImageViewBuilder(m_logicalDevice)
       .viewType(VK_IMAGE_VIEW_TYPE_2D)
       .image(m_depthImage)
-      .format(VK_FORMAT_D32_SFLOAT)
+      .format(depthFormat)
       .components({
         VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G,
         VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A,
       })
       .subresourceRange({
-        VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1
+        VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1
       })
       .create();
-
-#endif
-
   }
 };
 
