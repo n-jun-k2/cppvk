@@ -17,9 +17,6 @@
 #include "cppvk/allocator/commandbuffer.h"
 #include "cppvk/allocator/devicememory.h"
 
-
-#include "cppvk/imageformat.h"
-
 #include "cppvk/glslangtools.h"
 
 #include <algorithm>
