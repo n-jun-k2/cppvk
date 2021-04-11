@@ -1,5 +1,11 @@
 # cppvk
-vulkanとGLFW3の練習。
+vulkanとGLFW3とGLMの練習。
+
+# LICENSE
+Third party library.
+- [GLM](https://github.com/g-truc/glm/blob/master/copying.txt)
+- [Vulkan](https://github.com/SaschaWillems/Vulkan/blob/master/LICENSE.md)
+- [GLFW3](https://www.glfw.org/license)
 
 ## VkInstance flow to create...
 Process to create vkinstance.
