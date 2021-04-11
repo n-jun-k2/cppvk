@@ -126,6 +126,15 @@ namespace cppvk {
       }
   };
 
+  class BufferDeleter : public _sub_deleter<VkBuffer, VkDevice> {
+    public:
+      using _sub_deleter::_sub_deleter;
+      virtual void operator()(pointer ptr) override {
+        auto device = m_pparent.get();
+        vkDestroyBuffer(device, ptr, m_callbacks ? m_callbacks.get() : VK_NULL_HANDLE);
+      }
+  };
+
   using deivce_and_commandpool = std::pair< pointer<VkDevice_T>, pointer<VkCommandPool_T>>;
 
   template< std::size_t L>

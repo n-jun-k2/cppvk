@@ -50,4 +50,8 @@ namespace cppvk {
 
   using AllocationCallbacksPtr = pointer<VkAllocationCallbacks>;
   using AllocationCallbacksRef = reference<VkAllocationCallbacks>;
+
+  using BufferPtr = pointer<VkBuffer>;
+  using BufferRef = reference<VkBuffer>;
+
 }

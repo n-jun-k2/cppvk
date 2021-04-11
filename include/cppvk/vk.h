@@ -43,37 +43,60 @@ namespace cppvk {
   using ExtensionPropertiesList = std::vector<VkExtensionProperties>;
 
 
-
+  /// <summary>
+  /// Processing to check VkResult
+  /// </summary>
+  /// <param name="result">VkResult</param>
+  /// <param name="message">Message to be displayed at the time of exception</param>
   void checkVk(const VkResult& result, const std::string& message = "") {
     if (result == VK_SUCCESS)return;
     std::cerr << "VkResult : " << result << std::endl;
     throw std::runtime_error(message);
   }
 
+  /// <summary>
+  /// Enumerates the physical devices accessible to a Vulkan instance
+  /// </summary>
+  /// <param name="instance"></param>
+  /// <param name="list"></param>
   template< template<typename E, typename Allocator=std::allocator<E>>typename Container>
   static void getEnumeratePhysicalDevices(VkInstance instance, Container<VkPhysicalDevice>& list) {
     uint32_t count;
-    vkEnumeratePhysicalDevices(instance, &count, nullptr);
+    checkVk(vkEnumeratePhysicalDevices(instance, &count, nullptr));
     list.resize(count);
-    vkEnumeratePhysicalDevices(instance, &count, list.data());
+    checkVk(vkEnumeratePhysicalDevices(instance, &count, list.data()));
   }
 
+  /// <summary>
+  /// Enumerates groups of physical devices that can be used to create a single logical device
+  /// </summary>
+  /// <param name="instance"></param>
+  /// <param name="list"></param>
   template<template<typename E, typename Allocator=std::allocator<E>>typename Container>
   static void getEnumeratePhysicalDeviceGroupsKHR(VkInstance instance, Container<VkPhysicalDeviceGroupPropertiesKHR>& list) {
     uint32_t count;
-    vkEnumeratePhysicalDeviceGroupsKHR(instance, &count, nullptr);
+    checkVk(vkEnumeratePhysicalDeviceGroupsKHR(instance, &count, nullptr));
     list.resize(count);
-    vkEnumeratePhysicalDeviceGroupsKHR(instance, &count, list.data());
+    checkVk(vkEnumeratePhysicalDeviceGroupsKHR(instance, &count, list.data()));
   }
 
+  /// <summary>
+  /// Enumerates groups of physical devices that can be used to create a single logical device
+  /// </summary>
+  /// <param name="instance"></param>
+  /// <param name="list"></param>
   template<template<typename E, typename Allocator=std::allocator<E>>typename Container>
   static void getEnumeratePhysicalDeviceGroups(VkInstance instance, Container<VkPhysicalDeviceGroupProperties>& list) {
     uint32_t count;
-    vkEnumeratePhysicalDeviceGroups(instance, &count, nullptr);
+    checkVk(vkEnumeratePhysicalDeviceGroups(instance, &count, nullptr));
     list.resize(count);
-    vkEnumeratePhysicalDeviceGroups(instance, &count, list.data());
+    checkVk(vkEnumeratePhysicalDeviceGroups(instance, &count, list.data()));
   }
 
+  /// <summary>
+  /// Returns up to requested number of global extension properties
+  /// </summary>
+  /// <param name="list"></param>
   template<template<typename E, typename Allocator=std::allocator<E>>typename Container>
   static void getEnumerateInstanceExtension(Container<VkExtensionProperties>& list) {
     uint32_t size = 0;
@@ -82,6 +105,10 @@ namespace cppvk {
     checkVk(vkEnumerateInstanceExtensionProperties(nullptr, &size, list.data()));
   }
 
+  /// <summary>
+  /// Returns up to requested number of global layer properties
+  /// </summary>
+  /// <param name="list"></param>
   template<template<typename E, typename Allocator=std::allocator<E>>typename Container>
   static void getEnumerateInstanceLayer(Container<VkLayerProperties>& list) {
     uint32_t size = 0;
@@ -90,12 +117,23 @@ namespace cppvk {
     checkVk(vkEnumerateInstanceLayerProperties(&size, list.data()));
   }
 
+  /// <summary>
+  /// Query instance-level version before instance creation
+  /// </summary>
+  /// <returns></returns>
   static uint32_t getEnumerateInstanceVersion() {
     uint32_t version;
     checkVk(vkEnumerateInstanceVersion(&version));
     return version;
   }
 
+  /// <summary>
+  ///
+  /// </summary>
+  /// <param name="target"></param>
+  /// <param name="source"></param>
+  /// <param name="toString"></param>
+  /// <returns></returns>
   template<class _T, template<class... Args>class Container>
   static bool _existSupport(const Names& target, const Container<_T>& source, std::function<const char* (const _T&)> toString) noexcept {
 
@@ -114,79 +152,45 @@ namespace cppvk {
     return true;
   }
 
+  /// <summary>
+  ///
+  /// </summary>
+  /// <param name="target"></param>
+  /// <param name="source"></param>
+  /// <returns></returns>
   static bool existSupport(const Names& target, const ExtensionPropertiesList& source) {
     return _existSupport<VkExtensionProperties, std::vector>(target, source, [](VkExtensionProperties prop) {return prop.extensionName; });
   }
+
+  /// <summary>
+  ///
+  /// </summary>
+  /// <param name="target"></param>
+  /// <param name="source"></param>
+  /// <returns></returns>
   static bool existSupport(const Names& target, const LayerPropertiesList& source) {
     return _existSupport<VkLayerProperties, std::vector>(target, source, [](VkLayerProperties prop) {return prop.layerName; });
   }
 
+  /// <summary>
+  /// Query if presentation is supported
+  /// </summary>
+  /// <param name="physicalDevice"></param>
+  /// <param name="surface"></param>
+  /// <param name="index"></param>
+  /// <returns></returns>
   static bool isSurfaeSupport(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, const uint32_t index) {
     VkBool32 isSupporte = VK_FALSE;
     checkVk(vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, index, surface, &isSupporte));
     return isSupporte == VK_TRUE;
   }
 
-  template<template<typename E, typename Allocator=std::allocator<E>>typename Container>
-  struct PhysicalDeviceDetails {
-    VkPhysicalDeviceProperties properties;
-    VkPhysicalDeviceFeatures features;
-    VkPhysicalDeviceMemoryProperties memoryProperties;
-    Container<VkExtensionProperties> extensions;
-    Container<VkLayerProperties> validations;
-    Container<VkQueueFamilyProperties> queueProperties;
-
-
-    PhysicalDeviceDetails() = delete;
-    explicit PhysicalDeviceDetails(VkPhysicalDevice pDevice) {
-      vkGetPhysicalDeviceProperties(pDevice, &properties);
-      vkGetPhysicalDeviceFeatures(pDevice, &features);
-      vkGetPhysicalDeviceMemoryProperties(pDevice, &memoryProperties);
-
-      uint32_t  count = 0;
-      vkGetPhysicalDeviceQueueFamilyProperties(pDevice, &count, nullptr);
-      queueProperties.resize(count);
-      vkGetPhysicalDeviceQueueFamilyProperties(pDevice, &count, queueProperties.data());
-
-      checkVk(vkEnumerateDeviceExtensionProperties(pDevice, nullptr, &count, nullptr));
-      extensions.resize(count);
-      checkVk(vkEnumerateDeviceExtensionProperties(pDevice, nullptr, &count, extensions.data()));
-
-      checkVk(vkEnumerateDeviceLayerProperties(pDevice, &count, nullptr));
-      validations.resize(count);
-      checkVk(vkEnumerateDeviceLayerProperties(pDevice, &count, validations.data()));
-    }
-
-    uint32_t findMemoryType(uint32_t filter, VkMemoryPropertyFlags property) {
-      for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; i++) {
-        auto type = filter & (1 << i);
-        auto flag = memoryProperties.memoryTypes[i].propertyFlags & property;
-        if( type && flag == property) return i;
-      }
-      throw std::runtime_error("Failed to find memory type");
-    }
-  };
-
-  template<template<typename E, typename Allocator=std::allocator<E>>typename Container>
-  struct PhysicalDeviceSurfaceDetails {
-    VkSurfaceCapabilitiesKHR capabilities;
-    Container<VkSurfaceFormatKHR> formatList;
-    Container<VkPresentModeKHR> presentModeList;
-
-    explicit PhysicalDeviceSurfaceDetails(VkPhysicalDevice pDevice, VkSurfaceKHR pSurface) {
-      checkVk(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(pDevice, pSurface, &capabilities));
-
-      uint32_t size;
-      checkVk(vkGetPhysicalDeviceSurfaceFormatsKHR(pDevice, pSurface, &size, nullptr));
-      formatList.resize(size);
-			checkVk(vkGetPhysicalDeviceSurfaceFormatsKHR(pDevice, pSurface, &size, formatList.data()));
-
-      checkVk(vkGetPhysicalDeviceSurfacePresentModesKHR(pDevice, pSurface, &size, nullptr));
-      presentModeList.resize(size);
-      checkVk(vkGetPhysicalDeviceSurfacePresentModesKHR(pDevice, pSurface, &size, presentModeList.data()));
-    }
-  };
-
+  /// <summary>
+  /// Obtain the array of presentable images associated with a swapchain
+  /// </summary>
+  /// <param name="device"></param>
+  /// <param name="swapchain"></param>
+  /// <param name="list"></param>
   template<template<typename T, typename Allocate = std::allocator<T>>class Container>
   void getSwapchainImagesKHR(VkDevice device, VkSwapchainKHR swapchain, Container<VkImage> &list) {
     uint32_t count;

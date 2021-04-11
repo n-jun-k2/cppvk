@@ -3,6 +3,7 @@
 #include "Window/AppWindow.h"
 
 #include "cppvk/vk.h"
+#include "cppvk/details.h"
 #include "cppvk/allocationcallbacks.h"
 #include "cppvk/pointer.h"
 #include "cppvk/builders/instancebuilder.h"
@@ -13,11 +14,14 @@
 #include "cppvk/builders/swapchainbuilder.h"
 #include "cppvk/builders/imagebuilder.h"
 #include "cppvk/builders/imageviewbuilder.h"
+#include "cppvk/builders/bufferbuilder.h"
 #include "cppvk/info/devicequeueinfo.h"
 #include "cppvk/allocator/commandbuffer.h"
 #include "cppvk/allocator/devicememory.h"
 
 #include "cppvk/glslangtools.h"
+
+#include "glm/glm.hpp"
 
 #include <algorithm>
 #include <set>
@@ -73,6 +77,9 @@ class MyContext {
   cppvk::DeviceMemoryPtr m_depthMemory;
   cppvk::ImagePtr m_depthImage;
   cppvk::ImageViewPtr m_depthImageView;
+
+  cppvk::BufferPtr m_uniformBuffer;
+  cppvk::DeviceMemoryPtr m_uniformMemory;
 
   cppvk::AllocationCallbacksPtr m_instance_callbacks;
   cppvk::AllocationCallbacksPtr m_surface_callbacks;
@@ -333,6 +340,24 @@ public:
         VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1
       })
       .create();
+
+    m_uniformBuffer = cppvk::BufferBuilder(m_logicalDevice)
+      .usage(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT)
+      .sharingMode(VK_SHARING_MODE_EXCLUSIVE)
+      .size(sizeof(glm::mat4))
+      .create();
+
+    VkMemoryRequirements uniformBufferRequirements = {};
+    vkGetBufferMemoryRequirements(m_logicalDevice.get(), m_uniformBuffer.get(), &uniformBufferRequirements);
+
+    const auto uniformBufferTypeIndex = pPhysicalDetails->findMemoryType(uniformBufferRequirements.memoryTypeBits,
+    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+    m_uniformMemory = cppvk::DeviceMemoryAllocate(m_logicalDevice)
+      .typeIndex(uniformBufferTypeIndex)
+      .size(uniformBufferRequirements.size)
+      .allocate();
+
   }
 };
 
