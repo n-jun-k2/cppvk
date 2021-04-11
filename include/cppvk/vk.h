@@ -250,5 +250,22 @@ namespace cppvk {
     return std::nullopt;
   }
 
+
+  /// <summary>
+  /// Version that returns the index of find_if
+  /// </summary>
+  /// <typeparam name="InputIterator"></typeparam>
+  /// <typeparam name="Predicate"></typeparam>
+  /// <param name="first"></param>
+  /// <param name="last"></param>
+  /// <param name="pred"></param>
+  /// <returns></returns>
+  template <class InputIterator, class Predicate>
+  static uint32_t find_if_index(InputIterator first, InputIterator last, Predicate pred) {
+    auto itr = std::find_if(first, last, pred);
+    if (itr == last)return UINT32_MAX;
+    return static_cast<uint32_t>(std::distance(first, itr));
+  }
+
 }
 #pragma warning(pop)
