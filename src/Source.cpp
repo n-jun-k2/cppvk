@@ -6,6 +6,7 @@
 #include "cppvk/details.h"
 #include "cppvk/allocationcallbacks.h"
 #include "cppvk/pointer.h"
+#include "cppvk/memory.h"
 #include "cppvk/builders/instancebuilder.h"
 #include "cppvk/builders/debugutilsmessengerbuilder.h"
 #include "cppvk/builders/surfacebuilder.h"
@@ -22,6 +23,7 @@
 #include "cppvk/glslangtools.h"
 
 #include "glm/glm.hpp"
+#include "glm/gtc/matrix_transform.hpp"
 
 #include <algorithm>
 #include <set>
@@ -70,6 +72,17 @@ class MyContext {
   cppvk::AllocationCallbacksPtr m_commandpool_callbacks;
   cppvk::AllocationCallbacksPtr m_swapchain_callbacks;
 
+  cppvk::AllocationCallbacksPtr m_depthMemory_callbacks;
+  cppvk::AllocationCallbacksPtr m_depthImage_callbacks;
+  cppvk::AllocationCallbacksPtr m_depthImageView_callbacks;
+
+  cppvk::AllocationCallbacksPtr m_uniformBuffer_callbacks;
+  cppvk::AllocationCallbacksPtr m_uniformMemory_callbacks;
+
+  glm::mat4 projection;
+  glm::mat4 view;
+  glm::mat4 model;
+  glm::mat4 clip;
 
 #if _DEBUG
   cppvk::DebugUtilsMessengerPtr m_debugUtilsMessenger;
@@ -87,6 +100,14 @@ public:
     m_device_callbacks = cppvk::createPAllocator<const char*>("device");
     m_commandpool_callbacks = cppvk::createPAllocator<const char*>("commandpool");
     m_swapchain_callbacks = cppvk::createPAllocator<const char*>("swapchain");
+
+    m_depthMemory_callbacks = cppvk::createPAllocator<const char*>("depth memory");
+    m_depthImage_callbacks = cppvk::createPAllocator<const char*>("depth image");
+    m_depthImageView_callbacks = cppvk::createPAllocator<const char*>("depth imageview");
+
+    m_uniformBuffer_callbacks = cppvk::createPAllocator<const char*>("uniform buffer");
+    m_uniformMemory_callbacks = cppvk::createPAllocator<const char*>("uniform memory");
+
 
     auto useDebug = true;
     std::vector<VkExtensionProperties> instanceExtensions;
@@ -169,7 +190,7 @@ public:
       }
 
       if (present_queue_index == UINT32_MAX)
-        present_queue_index = find_if_index(std::begin(supportsPresent), std::end(supportsPresent), [](VkBool32 flag) {return flag == VK_TRUE;});
+        present_queue_index = cppvk::find_if_index(std::begin(supportsPresent), std::end(supportsPresent), [](VkBool32 flag) {return flag == VK_TRUE;});
 
       if (graphics_queue_index == UINT32_MAX || present_queue_index == UINT32_MAX)
         throw std::runtime_error("Queue Family Index could not be found.");
@@ -297,7 +318,7 @@ public:
       .samples(VK_SAMPLE_COUNT_1_BIT)
       .initialLayout(VK_IMAGE_LAYOUT_UNDEFINED)
       .arrayLayers(1)
-      .create();
+      .create(m_depthImage_callbacks);
 
     VkMemoryRequirements depthImageRequirements = {};
     vkGetImageMemoryRequirements(m_logicalDevice.get(), m_depthImage.get(), &depthImageRequirements);
@@ -307,7 +328,7 @@ public:
     m_depthMemory = cppvk::DeviceMemoryAllocate(m_logicalDevice)
       .typeIndex(depthImageTypeIndex)
       .size(depthImageRequirements.size)
-      .allocate();
+      .allocate(m_depthMemory_callbacks);
 
     cppvk::checkVk(vkBindImageMemory(m_logicalDevice.get(), m_depthImage.get(), m_depthMemory.get(), 0));
 
@@ -322,13 +343,13 @@ public:
       .subresourceRange({
         VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1
       })
-      .create();
+      .create(m_depthImageView_callbacks);
 
     m_uniformBuffer = cppvk::BufferBuilder(m_logicalDevice)
       .usage(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT)
       .sharingMode(VK_SHARING_MODE_EXCLUSIVE)
       .size(sizeof(glm::mat4))
-      .create();
+      .create(m_uniformBuffer_callbacks);
 
     VkMemoryRequirements uniformBufferRequirements = {};
     vkGetBufferMemoryRequirements(m_logicalDevice.get(), m_uniformBuffer.get(), &uniformBufferRequirements);
@@ -339,7 +360,30 @@ public:
     m_uniformMemory = cppvk::DeviceMemoryAllocate(m_logicalDevice)
       .typeIndex(uniformBufferTypeIndex)
       .size(uniformBufferRequirements.size)
-      .allocate();
+      .allocate(m_uniformMemory_callbacks);
+
+    projection = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 100.0f);
+    view = glm::lookAt(
+        glm::vec3(-5, 3, -10),  // Camera is at (-5,3,-10), in World Space
+        glm::vec3(0, 0, 0),     // and looks at the origin
+        glm::vec3(0, -1, 0)     // Head is up (set to 0,-1,0 to look upside-down)
+      );
+    model = glm::mat4(1.0f);
+    clip = glm::mat4(1.0f, 0.0f, 0.0f, 0.0f,
+                    0.0f,-1.0f, 0.0f, 0.0f,
+                    0.0f, 0.0f, 0.5f, 0.0f,
+                    0.0f, 0.0f, 0.5f, 1.0f);
+
+    {
+      glm::mat4 mvp = clip * projection * view * model;
+      auto mapData = cppvk::mapMemory<uint8_t>(m_logicalDevice, 0, uniformBufferRequirements.size, m_uniformMemory, 0);
+
+      std::memcpy(mapData->data(), &mvp, mapData->size());
+
+      cppvk::bindMemory(m_logicalDevice, m_uniformBuffer, m_uniformMemory);
+    }
+
+
 
   }
 };
