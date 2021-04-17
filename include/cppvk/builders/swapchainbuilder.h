@@ -97,11 +97,12 @@ namespace cppvk {
     template<template<typename T, class Allocate = std::allocator<T>>class Container>
     SwapchainBuilder& queueFamilyIndices(const Container<uint32_t>& pQueueFamilyIndices) {
       m_info.queueFamilyIndexCount = static_cast<uint32_t>(pQueueFamilyIndices.size());
-      m_info.pQueueFamilyIndices = pQueueFamilyIndices.data();
+      m_info.pQueueFamilyIndices = nullptr;
+      if (m_info.queueFamilyIndexCount > 0)
+        m_info.pQueueFamilyIndices = pQueueFamilyIndices.data();
+      m_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
       if (m_info.queueFamilyIndexCount > 1)
         m_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-      else
-        m_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
       return *this;
     }
 

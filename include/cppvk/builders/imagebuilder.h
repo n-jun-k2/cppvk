@@ -90,7 +90,9 @@ namespace cppvk {
 
       ImageBuilder& queueFamilyIndices(cppvk::Indexs& indices) {
         m_info.queueFamilyIndexCount = static_cast<uint32_t>(indices.size());
-        m_info.pQueueFamilyIndices = indices.data();
+        m_info.pQueueFamilyIndices = nullptr;
+        if (indices.empty())
+          m_info.pQueueFamilyIndices = indices.data();
         return *this;
       }
 

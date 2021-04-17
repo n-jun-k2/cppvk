@@ -117,6 +117,7 @@ namespace cppvk {
     /// <returns></returns>
     InstanceBuilder& enabledLayerNames(const Names& layers) {
       info.enabledLayerCount = static_cast<uint32_t>(layers.size());
+      info.ppEnabledLayerNames = nullptr;
       if (!layers.empty())info.ppEnabledLayerNames = layers.data();
       return *this;
     }
@@ -139,6 +140,7 @@ namespace cppvk {
     /// <returns></returns>
     InstanceBuilder& enabledExtensionNames(const Names& extensions) {
       info.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
+      info.ppEnabledExtensionNames = nullptr;
       if (!extensions.empty())info.ppEnabledExtensionNames = extensions.data();
       return *this;
     }

@@ -38,7 +38,9 @@ namespace cppvk {
       template<template<typename E, typename Allocator=std::allocator<E>>typename Container>
       ShaderModuleBuilder& code(const Container<char>& pCode) {
         m_info.codeSize = static_cast<uint32_t>(pCode.size());
-        m_info.pCode = reinterpret_cast<const uint32_t*>(code.data());
+        m_info.pCode = nullptr;
+        if (m_info.codeSize > 0)
+          m_info.pCode = reinterpret_cast<const uint32_t*>(code.data());
         return *this;
       }
 
