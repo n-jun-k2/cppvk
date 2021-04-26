@@ -16,9 +16,15 @@
 #include "cppvk/builders/imagebuilder.h"
 #include "cppvk/builders/imageviewbuilder.h"
 #include "cppvk/builders/bufferbuilder.h"
+#include "cppvk/builders/descriptorsetlayoutbuilder.h"
+#include "cppvk/builders/pipelinelayoutbuilder.h"
+#include "cppvk/builders/descriptorpoolbuilder.h"
 #include "cppvk/info/devicequeueinfo.h"
+#include "cppvk/info/descriptorpoolsizeinfo.h"
+#include "cppvk/info/descriptorsetlayoutbindinginfo.h"
 #include "cppvk/allocator/commandbuffer.h"
 #include "cppvk/allocator/devicememory.h"
+#include "cppvk/allocator/descriptorset.h"
 
 #include "cppvk/glslangtools.h"
 
@@ -47,7 +53,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 class MyContext {
 
   static constexpr size_t CMD_BUFFER_SIZE = 1;
-
+  static constexpr size_t DESCRIPTOR_POOL_SIZE = 1;
 
   cppvk::InstancePtr m_instance;
   cppvk::SurfacePtr m_surface;
@@ -55,6 +61,9 @@ class MyContext {
   cppvk::CommandPoolPtr m_cmdPool;
   cppvk::CommandBufferPtr<CMD_BUFFER_SIZE> m_cmdBuffer;
   cppvk::SwapchainPtr m_swapchain;
+  cppvk::PipelineLayoutPtr m_pipelinelayout;
+  cppvk::DescriptorPoolPtr m_descriptorpool;
+  cppvk::DescriptorSetPtr<DESCRIPTOR_POOL_SIZE> m_descriptorset;
 
   std::vector<VkImage> m_swapchain_images; // no destroy
   std::vector<cppvk::ImageViewPtr> m_swapchain_iamgeViews;
@@ -65,12 +74,16 @@ class MyContext {
 
   cppvk::BufferPtr m_uniformBuffer;
   cppvk::DeviceMemoryPtr m_uniformMemory;
+  cppvk::DescriptorSetLayoutPtr m_uniformDescriptorSetLayout;
 
   cppvk::AllocationCallbacksPtr m_instance_callbacks;
   cppvk::AllocationCallbacksPtr m_surface_callbacks;
   cppvk::AllocationCallbacksPtr m_device_callbacks;
   cppvk::AllocationCallbacksPtr m_commandpool_callbacks;
   cppvk::AllocationCallbacksPtr m_swapchain_callbacks;
+  cppvk::AllocationCallbacksPtr m_pipeline_callbacks;
+  cppvk::AllocationCallbacksPtr m_descriptorpool_callbacks;
+  cppvk::AllocationCallbacksPtr m_descriptorsetlayout_callbacks;
 
   cppvk::AllocationCallbacksPtr m_depthMemory_callbacks;
   cppvk::AllocationCallbacksPtr m_depthImage_callbacks;
@@ -78,6 +91,7 @@ class MyContext {
 
   cppvk::AllocationCallbacksPtr m_uniformBuffer_callbacks;
   cppvk::AllocationCallbacksPtr m_uniformMemory_callbacks;
+
 
   glm::mat4 projection;
   glm::mat4 view;
@@ -100,6 +114,9 @@ public:
     m_device_callbacks = cppvk::createPAllocator<const char*>("device");
     m_commandpool_callbacks = cppvk::createPAllocator<const char*>("commandpool");
     m_swapchain_callbacks = cppvk::createPAllocator<const char*>("swapchain");
+    m_pipeline_callbacks = cppvk::createPAllocator<const char*>("pipeline");
+    m_descriptorpool_callbacks = cppvk::createPAllocator<const char*>("descriptor pool");
+    m_descriptorsetlayout_callbacks = cppvk::createPAllocator<const char*>("descriptor set layout");
 
     m_depthMemory_callbacks = cppvk::createPAllocator<const char*>("depth memory");
     m_depthImage_callbacks = cppvk::createPAllocator<const char*>("depth image");
@@ -383,7 +400,43 @@ public:
       cppvk::bindMemory(m_logicalDevice, m_uniformBuffer, m_uniformMemory);
     }
 
+    cppvk::DescriptorSetLayoutBindingList<std::vector> layoutBindings = {
+      cppvk::DescriptorSetLayoutInfoWrapper()
+      .binding(0)
+      .type(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+      .count(1)
+      .stageFlags(VK_SHADER_STAGE_VERTEX_BIT)
+    };
 
+    m_uniformDescriptorSetLayout = cppvk::DescriptorSetLayoutBuilder(m_logicalDevice)
+      .flags(0)
+      .bindings(layoutBindings)
+      .create(m_descriptorsetlayout_callbacks);
+
+    auto layouts = std::vector<VkDescriptorSetLayout>{
+      m_uniformDescriptorSetLayout.get()
+    };
+
+    m_pipelinelayout = cppvk::PipelineLayoutBuilder(m_logicalDevice)
+      .flags(0)
+      .layouts(layouts)
+      .pushConstantRange()
+      .create(m_pipeline_callbacks);
+
+    auto poolsizeList = cppvk::DescriptorPoolSizeList<std::vector>{
+      cppvk::DescriptorPoolSizeInfoWrapper::uniformBuffer(1)
+    };
+
+    m_descriptorpool = cppvk::DescriptorPoolBuilder(m_logicalDevice)
+      .flags(0)
+      .maxSets(1)
+      .poolsize(poolsizeList)
+      .create(m_descriptorpool_callbacks);
+
+    m_descriptorset = cppvk::DescriptorSetAllocate<DESCRIPTOR_POOL_SIZE>(m_logicalDevice)
+      .descriptorPool(m_descriptorpool)
+      .layouts(layouts)
+      .allocate();
 
   }
 };

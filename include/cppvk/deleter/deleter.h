@@ -135,10 +135,43 @@ namespace cppvk {
       }
   };
 
-  using deivce_and_commandpool = std::pair< pointer<VkDevice_T>, pointer<VkCommandPool_T>>;
+  class DescriptorSetLayoutDeleter : public _sub_deleter<VkDescriptorSetLayout, VkDevice> {
+    public:
+      using _sub_deleter::_sub_deleter;
+      virtual void operator()(pointer ptr) override {
+        auto device = m_pparent.get();
+        vkDestroyDescriptorSetLayout(device, ptr, m_callbacks ? m_callbacks.get() : VK_NULL_HANDLE);
+      }
+  };
 
-  template< std::size_t L>
-  using _cmd_sub_deleter = _sub_deleter <std::array<VkCommandBuffer, L>, deivce_and_commandpool>;
+  class PipelineLayoutDeleter : public _sub_deleter<VkPipelineLayout, VkDevice> {
+    public:
+      using _sub_deleter::_sub_deleter;
+      virtual void operator()(pointer ptr) override {
+        auto device = m_pparent.get();
+        vkDestroyPipelineLayout(device, ptr, m_callbacks ? m_callbacks.get() : VK_NULL_HANDLE);
+      }
+  };
+
+  class DescriptorPoolDeleter : public _sub_deleter<VkDescriptorPool, VkDevice> {
+    public:
+      using _sub_deleter::_sub_deleter;
+      virtual void operator()(pointer ptr) override {
+        auto device = m_pparent.get();
+        vkDestroyDescriptorPool(device, ptr, m_callbacks ? m_callbacks.get() : VK_NULL_HANDLE);
+      }
+  };
+
+  template<typename PoolType>
+  using device_and_pool = std::pair< pointer<VkDevice_T>, pointer<PoolType>>;
+
+  template<typename PoolType, typename ArrayType, std::size_t Length>
+  using _array_sub_deleter = _sub_deleter <std::array<ArrayType, Length>, device_and_pool<PoolType>>;
+
+
+  using deivce_and_commandpool = device_and_pool<VkCommandPool>;
+  template< std::size_t _L>
+  using _cmd_sub_deleter = _array_sub_deleter<VkCommandPool,VkCommandBuffer, _L>;
 
   template< std::size_t  _L>
   class CommandBufferDeleter : public   _cmd_sub_deleter<_L> {
@@ -146,8 +179,24 @@ namespace cppvk {
     using _cmd_sub_deleter<_L>::_cmd_sub_deleter;
     virtual void operator()(typename  _cmd_sub_deleter<_L>::pointer ptr) override {
       auto device = this->m_pparent->first.get();
-      auto cmdPool = this->m_pparent->second.get();
-      vkFreeCommandBuffers(device, cmdPool, _L, ptr->data());
+      auto pool = this->m_pparent->second.get();
+      vkFreeCommandBuffers(device, pool, _L, ptr->data());
     }
   };
+
+  using device_and_descriptorpool = device_and_pool<VkDescriptorPool>;
+  template< std::size_t _L>
+  using _descriptorset_sub_deleter = _array_sub_deleter<VkDescriptorPool, VkDescriptorSet, _L>;
+
+  template< std::size_t _L>
+  class DescriptorSetDeleter : public _descriptorset_sub_deleter<_L> {
+  public:
+    using _descriptorset_sub_deleter<_L>::_descriptorset_sub_deleter;
+    virtual void operator()(typename  _descriptorset_sub_deleter<_L>::pointer ptr) override {
+      auto device = this->m_pparent->first.get();
+      auto pool = this->m_pparent->second.get();
+      vkFreeDescriptorSets(device, pool, _L, ptr->data());
+    }
+  };
+
 }

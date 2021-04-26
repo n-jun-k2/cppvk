@@ -54,4 +54,18 @@ namespace cppvk {
   using BufferPtr = pointer<VkBuffer>;
   using BufferRef = reference<VkBuffer>;
 
+  using DescriptorSetLayoutPtr = pointer<VkDescriptorSetLayout>;
+  using DescriptorSetLayoutRef = reference<VkDescriptorSetLayout>;
+
+  using PipelineLayoutPtr = pointer<VkPipelineLayout>;
+  using PipelineLayoutRef = reference<VkPipelineLayout>;
+
+  using DescriptorPoolPtr = pointer<VkDescriptorPool>;
+  using DescriptorPoolRef = reference<VkDescriptorPool>;
+
+  template<size_t Length>
+  using DescriptorSetPtr = pointer<std::array<VkDescriptorSet, Length>>;
+  template<size_t Length>
+  using DescriptorSetRef = reference<std::array<VkDescriptorSet, Length>>;
+
 }
