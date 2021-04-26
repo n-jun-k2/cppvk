@@ -40,7 +40,7 @@ namespace cppvk {
         this->m_info.commandPool = pCmdPool.get();
         auto buffer = new std::array<VkCommandBuffer, Length> { VK_NULL_HANDLE };
         cppvk::checkVk(vkAllocateCommandBuffers(pDevice.get(), &m_info, buffer->data()));
-        return CommandBufferPtr<Length>(buffer, cppvk::CommandBufferDeleter<Length>(std::make_shared<deivce_and_commandpool>(pDevice, pCmdPool), VK_NULL_HANDLE));
+        return CommandBufferPtr<Length>(buffer, cppvk::CommandBufferDeleter<Length>(std::make_shared<deivce_and_commandpool>(pDevice, pCmdPool), nullptr));
       }
       throw std::runtime_error("Failed to create CommandBuffers");
     }
