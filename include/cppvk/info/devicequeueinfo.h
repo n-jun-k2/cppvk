@@ -60,6 +60,6 @@ namespace cppvk {
   };
 
   template < template<typename E, typename Allocator = std::allocator<E>>class Container>
-  using DeviceQueueCreateInfoList = cppvk::UnionWrapper< VkDeviceQueueCreateInfo, DeviceQueueCreateInfoWrapper, Container>;
+  using DeviceQueueCreateInfoList = cppvk::WrapContainer< VkDeviceQueueCreateInfo, DeviceQueueCreateInfoWrapper, Container>;
 
 }

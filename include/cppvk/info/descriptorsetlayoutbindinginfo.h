@@ -38,6 +38,6 @@ namespace cppvk {
   };
 
   template < template<typename E, typename Allocator = std::allocator<E>>class Container>
-  using DescriptorSetLayoutBindingList = cppvk::UnionWrapper< VkDescriptorSetLayoutBinding, DescriptorSetLayoutInfoWrapper, Container>;
+  using DescriptorSetLayoutBindingList = cppvk::WrapContainer< VkDescriptorSetLayoutBinding, DescriptorSetLayoutInfoWrapper, Container>;
 
 }

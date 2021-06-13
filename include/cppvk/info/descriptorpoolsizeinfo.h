@@ -78,7 +78,7 @@ namespace cppvk {
   };
 
   template < template<typename E, typename Allocator = std::allocator<E>>class Container>
-  using DescriptorPoolSizeList = cppvk::UnionWrapper< VkDescriptorPoolSize, DescriptorPoolSizeInfoWrapper, Container>;
+  using DescriptorPoolSizeList = cppvk::WrapContainer< VkDescriptorPoolSize, DescriptorPoolSizeInfoWrapper, Container>;
 
 
 }
