@@ -48,10 +48,10 @@ namespace cppvk {
 
       template < template<typename E, typename Allocator = std::allocator<E>>class Container>
       DescriptorPoolBuilder& poolsize(DescriptorPoolSizeList<Container>& list) {
-        m_info.poolSizeCount = static_cast<uint32_t>(list.row.size());
+        m_info.poolSizeCount = static_cast<uint32_t>(list.raw.size());
         m_info.pPoolSizes = nullptr;
-        if (!list.row.empty())
-          m_info.pPoolSizes = list.row.data();
+        if (!list.raw.empty())
+          m_info.pPoolSizes = list.raw.data();
         return *this;
       }
   };

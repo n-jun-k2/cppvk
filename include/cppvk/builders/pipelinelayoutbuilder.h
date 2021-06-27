@@ -3,6 +3,7 @@
 #include "../vk.h"
 #include "../type.h"
 #include "../pointer.h"
+#include "../poolobject.h"
 #include "../deleter/deleter.h"
 
 namespace cppvk {
@@ -11,6 +12,7 @@ namespace cppvk {
     private:
       VkPipelineLayoutCreateInfo m_info;
       cppvk::DeviceRef m_refDevice;
+      DescriptorSetLayoutPoolRef m_refPool;
 
     public:
       explicit PipelineLayoutBuilder(cppvk::DeviceRef refDevice) : m_refDevice(refDevice) {
@@ -21,7 +23,16 @@ namespace cppvk {
       PipelineLayoutBuilder() = delete;
 
       cppvk::PipelineLayoutPtr create(AllocationCallbacksPtr callbacks = nullptr) {
-        if (auto pDevice = m_refDevice.lock()) {
+        auto pPool = m_refPool.lock();
+        auto pDevice = m_refDevice.lock();
+        if (pDevice && pPool) {
+
+          m_info.setLayoutCount = static_cast<uint32_t>(pPool->size());
+          m_info.pSetLayouts = nullptr;
+          if (m_info.setLayoutCount > 0) {
+            m_info.pSetLayouts = pPool->data();
+          }
+
           VkPipelineLayout layout;
           checkVk(vkCreatePipelineLayout(pDevice.get(), &m_info,  callbacks ? callbacks.get() : VK_NULL_HANDLE, &layout));
           return PipelineLayoutPtr(layout, PipelineLayoutDeleter(pDevice, callbacks));
@@ -34,21 +45,10 @@ namespace cppvk {
         return *this;
       }
 
-      PipelineLayoutBuilder& layouts(){
-        m_info.setLayoutCount = 0;
-        m_info.pSetLayouts = nullptr;
+      PipelineLayoutBuilder& layoutpool(DescriptorSetLayoutPoolPtr ref) {
+        m_refPool = ref;
         return *this;
       }
-
-      template< template<class T, class Allocator = std::allocator<T>> class Container>
-      PipelineLayoutBuilder& layouts(Container<VkDescriptorSetLayout>& pLayouts) {
-        m_info.setLayoutCount = static_cast<uint32_t>(pLayouts.size());
-        m_info.pSetLayouts = nullptr;
-        if (m_info.setLayoutCount > 0)
-          m_info.pSetLayouts = pLayouts.data();
-        return *this;
-      }
-
 
       PipelineLayoutBuilder& pushConstantRange() {
         m_info.pushConstantRangeCount = 0;

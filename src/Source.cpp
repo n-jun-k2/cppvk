@@ -408,18 +408,17 @@ public:
       .stageFlags(VK_SHADER_STAGE_VERTEX_BIT)
     };
 
+    auto descriptorSetLayoutPool = cppvk::DescriptorSetLayoutPool::createPool(1);
+
     m_uniformDescriptorSetLayout = cppvk::DescriptorSetLayoutBuilder(m_logicalDevice)
       .flags(0)
+      .pool(descriptorSetLayoutPool)
       .bindings(layoutBindings)
       .create(m_descriptorsetlayout_callbacks);
 
-    auto layouts = std::vector<VkDescriptorSetLayout>{
-      m_uniformDescriptorSetLayout.get()
-    };
-
     m_pipelinelayout = cppvk::PipelineLayoutBuilder(m_logicalDevice)
       .flags(0)
-      .layouts(layouts)
+      .layoutpool(descriptorSetLayoutPool)
       .pushConstantRange()
       .create(m_pipeline_callbacks);
 
@@ -433,10 +432,10 @@ public:
       .poolsize(poolsizeList)
       .create(m_descriptorpool_callbacks);
 
-    m_descriptorset = cppvk::DescriptorSetAllocate<DESCRIPTOR_POOL_SIZE>(m_logicalDevice)
-      .descriptorPool(m_descriptorpool)
-      .layouts(layouts)
-      .allocate();
+    // m_descriptorset = cppvk::DescriptorSetAllocate<DESCRIPTOR_POOL_SIZE>(m_logicalDevice)
+    //   .descriptorPool(m_descriptorpool)
+    //   .layouts(layouts)
+    //   .allocate();
 
   }
 };

@@ -119,10 +119,10 @@ namespace cppvk {
 
     template < template<typename E, typename Allocator = std::allocator<E>>class Container>
     LogicalDeviceBuilder& queueCreateInfos(const DeviceQueueCreateInfoList<Container>& arg) {
-      m_info.queueCreateInfoCount = static_cast<uint32_t>(arg.row.size());
+      m_info.queueCreateInfoCount = static_cast<uint32_t>(arg.raw.size());
       m_info.pQueueCreateInfos = nullptr;
-      if (!arg.row.empty())
-        m_info.pQueueCreateInfos = arg.row.data();
+      if (!arg.raw.empty())
+        m_info.pQueueCreateInfos = arg.raw.data();
       return *this;
     }
 
