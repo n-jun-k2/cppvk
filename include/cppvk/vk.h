@@ -226,6 +226,11 @@ namespace cppvk {
     if (func != nullptr)func(instance, debugMessenger, pAllocator);
   }
 
+  /// <summary>
+  /// extent2Dto3D
+  /// </summary>
+  /// <param name="src"></param>
+  /// <param name="dist"></param>
   static void extent2Dto3D(const VkExtent2D& src, VkExtent3D& dist) {
     dist.depth = 1;
     dist.width = src.width;
