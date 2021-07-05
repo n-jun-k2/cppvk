@@ -432,10 +432,10 @@ public:
       .poolsize(poolsizeList)
       .create(m_descriptorpool_callbacks);
 
-    // m_descriptorset = cppvk::DescriptorSetAllocate<DESCRIPTOR_POOL_SIZE>(m_logicalDevice)
-    //   .descriptorPool(m_descriptorpool)
-    //   .layouts(layouts)
-    //   .allocate();
+    m_descriptorset = cppvk::DescriptorSetAllocate<DESCRIPTOR_POOL_SIZE>(m_logicalDevice)
+      .descriptorPool(m_descriptorpool)
+      .layoutpool(descriptorSetLayoutPool)
+      .allocate();
 
   }
 };
