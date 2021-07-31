@@ -26,6 +26,8 @@
 #include "cppvk/allocator/devicememory.h"
 #include "cppvk/allocator/descriptorset.h"
 
+#include "cppvk/functor/descriptorupdate.h"
+
 #include "cppvk/glslangtools.h"
 
 #include "glm/glm.hpp"
@@ -436,6 +438,23 @@ public:
       .descriptorPool(m_descriptorpool)
       .layoutpool(descriptorSetLayoutPool)
       .allocate();
+
+    auto writeList = cppvk::DescriptorWriteInfoList<std::vector>{
+      cppvk::DescriptorWriteInfoWrapper()
+        .dstBinding(0)
+        .dstArrayElement(0)
+        .descriptorType(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+        .pBuffer(cppvk::DescriptorBufferInfoList<std::vector>{
+          cppvk::DescriptorBufferInfoWrapper()
+            .buffer(m_uniformBuffer)
+            .range(sizeof(glm::mat4))
+        })
+    };
+
+    cppvk::DescriptorUpdateHelper<DESCRIPTOR_POOL_SIZE>(m_logicalDevice)
+      .write(writeList)
+      .dstSet(m_descriptorset)
+      .update();
 
   }
 };
