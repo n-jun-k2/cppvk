@@ -3,13 +3,15 @@
 #include "../vk.h"
 #include "../type.h"
 #include "../pointer.h"
+#include "../common.h"
 #include "../deleter/deleter.h"
-
 namespace cppvk {
+
   class BufferBuilder :Noncopyable, Nondynamicallocation {
     private:
       VkBufferCreateInfo m_info;
-      cppvk::DeviceRef m_refLogicalDevice;
+      DeviceRef m_refLogicalDevice;
+      std::vector<uint32_t> m_pQueueFamilyIndices;
 
     public:
       explicit BufferBuilder(DeviceRef pLogicalDevice)
@@ -23,6 +25,7 @@ namespace cppvk {
       }
 
       cppvk::BufferPtr create(AllocationCallbacksPtr callbacks = nullptr) {
+        containerToCPtr(m_info.queueFamilyIndexCount, &m_info.pQueueFamilyIndices, m_pQueueFamilyIndices);
         if(auto pLogicalDevice = m_refLogicalDevice.lock()) {
           VkBuffer buffer;
           checkVk(vkCreateBuffer(pLogicalDevice.get(), &m_info, callbacks ? callbacks.get() : VK_NULL_HANDLE, &buffer));
@@ -51,11 +54,8 @@ namespace cppvk {
         return *this;
       }
 
-      BufferBuilder& queueFamilyIndices(cppvk::Indexs& indices) {
-        m_info.queueFamilyIndexCount = static_cast<uint32_t>(indices.size());
-        m_info.pQueueFamilyIndices = nullptr;
-        if (!indices.empty())
-          m_info.pQueueFamilyIndices = indices.data();
+      BufferBuilder& queueFamilyIndices(std::function<void(Indexs&)> create) {
+        create(m_pQueueFamilyIndices);
         return *this;
       }
 
@@ -63,6 +63,6 @@ namespace cppvk {
         m_info.sharingMode = mode;
         return *this;
       }
-
   };
+
 }

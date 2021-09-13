@@ -3,7 +3,6 @@
 #include "Window/AppWindow.h"
 
 #include "cppvk/vk.h"
-#include "cppvk/details.h"
 #include "cppvk/allocationcallbacks.h"
 #include "cppvk/pointer.h"
 #include "cppvk/memory.h"
@@ -12,23 +11,18 @@
 #include "cppvk/builders/surfacebuilder.h"
 #include "cppvk/builders/logicaldevicebuilder.h"
 #include "cppvk/builders/commandpoolbuilder.h"
+#include "cppvk/builders/commandbufferbuilder.h"
 #include "cppvk/builders/swapchainbuilder.h"
 #include "cppvk/builders/imagebuilder.h"
 #include "cppvk/builders/imageviewbuilder.h"
+#include "cppvk/builders/devicememorybuilder.h"
 #include "cppvk/builders/bufferbuilder.h"
 #include "cppvk/builders/descriptorsetlayoutbuilder.h"
-#include "cppvk/builders/pipelinelayoutbuilder.h"
 #include "cppvk/builders/descriptorpoolbuilder.h"
-#include "cppvk/info/devicequeueinfo.h"
-#include "cppvk/info/descriptorpoolsizeinfo.h"
-#include "cppvk/info/descriptorsetlayoutbindinginfo.h"
-#include "cppvk/allocator/commandbuffer.h"
-#include "cppvk/allocator/devicememory.h"
-#include "cppvk/allocator/descriptorset.h"
+#include "cppvk/builders/descriptorsetbuilder.h"
+#include "cppvk/builders/pipelinelayoutbuilder.h"
 
-#include "cppvk/functor/descriptorupdate.h"
-
-#include "cppvk/glslangtools.h"
+#include "cppvk/models/descriptorsetupdater.h"
 
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
@@ -53,19 +47,21 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 
 
 class MyContext {
-
   static constexpr size_t CMD_BUFFER_SIZE = 1;
   static constexpr size_t DESCRIPTOR_POOL_SIZE = 1;
-
+#if _DEBUG
+  cppvk::DebugUtilsMessengerPtr m_debugUtilsMessenger;
+  cppvk::AllocationCallbacksPtr m_debugUtilsMessanger_callbacks;
+#endif
   cppvk::InstancePtr m_instance;
   cppvk::SurfacePtr m_surface;
   cppvk::DevicePtr m_logicalDevice;
   cppvk::CommandPoolPtr m_cmdPool;
-  cppvk::CommandBufferPtr<CMD_BUFFER_SIZE> m_cmdBuffer;
+  cppvk::CommandBufferPtr m_cmdBuffer;
   cppvk::SwapchainPtr m_swapchain;
   cppvk::PipelineLayoutPtr m_pipelinelayout;
   cppvk::DescriptorPoolPtr m_descriptorpool;
-  cppvk::DescriptorSetPtr<DESCRIPTOR_POOL_SIZE> m_descriptorset;
+  cppvk::DescriptorSetPtr m_descriptorset;
 
   std::vector<VkImage> m_swapchain_images; // no destroy
   std::vector<cppvk::ImageViewPtr> m_swapchain_iamgeViews;
@@ -78,32 +74,10 @@ class MyContext {
   cppvk::DeviceMemoryPtr m_uniformMemory;
   cppvk::DescriptorSetLayoutPtr m_uniformDescriptorSetLayout;
 
-  cppvk::AllocationCallbacksPtr m_instance_callbacks;
-  cppvk::AllocationCallbacksPtr m_surface_callbacks;
-  cppvk::AllocationCallbacksPtr m_device_callbacks;
-  cppvk::AllocationCallbacksPtr m_commandpool_callbacks;
-  cppvk::AllocationCallbacksPtr m_swapchain_callbacks;
-  cppvk::AllocationCallbacksPtr m_pipeline_callbacks;
-  cppvk::AllocationCallbacksPtr m_descriptorpool_callbacks;
-  cppvk::AllocationCallbacksPtr m_descriptorsetlayout_callbacks;
-
-  cppvk::AllocationCallbacksPtr m_depthMemory_callbacks;
-  cppvk::AllocationCallbacksPtr m_depthImage_callbacks;
-  cppvk::AllocationCallbacksPtr m_depthImageView_callbacks;
-
-  cppvk::AllocationCallbacksPtr m_uniformBuffer_callbacks;
-  cppvk::AllocationCallbacksPtr m_uniformMemory_callbacks;
-
-
   glm::mat4 projection;
   glm::mat4 view;
   glm::mat4 model;
   glm::mat4 clip;
-
-#if _DEBUG
-  cppvk::DebugUtilsMessengerPtr m_debugUtilsMessenger;
-  cppvk::AllocationCallbacksPtr m_debugUtilsMessanger_callbacks;
-#endif
 
 public:
   MyContext() = default;
@@ -111,81 +85,66 @@ public:
 
   void  WinInit(HWND hwnd, const uint32_t& , const uint32_t& ) {
 
-    m_instance_callbacks = cppvk::createPAllocator<const char*>("instance");
-    m_surface_callbacks = cppvk::createPAllocator<const char*>("surface");
-    m_device_callbacks = cppvk::createPAllocator<const char*>("device");
-    m_commandpool_callbacks = cppvk::createPAllocator<const char*>("commandpool");
-    m_swapchain_callbacks = cppvk::createPAllocator<const char*>("swapchain");
-    m_pipeline_callbacks = cppvk::createPAllocator<const char*>("pipeline");
-    m_descriptorpool_callbacks = cppvk::createPAllocator<const char*>("descriptor pool");
-    m_descriptorsetlayout_callbacks = cppvk::createPAllocator<const char*>("descriptor set layout");
-
-    m_depthMemory_callbacks = cppvk::createPAllocator<const char*>("depth memory");
-    m_depthImage_callbacks = cppvk::createPAllocator<const char*>("depth image");
-    m_depthImageView_callbacks = cppvk::createPAllocator<const char*>("depth imageview");
-
-    m_uniformBuffer_callbacks = cppvk::createPAllocator<const char*>("uniform buffer");
-    m_uniformMemory_callbacks = cppvk::createPAllocator<const char*>("uniform memory");
-
-
     auto useDebug = true;
-    std::vector<VkExtensionProperties> instanceExtensions;
-    cppvk::getEnumerateInstanceExtension(instanceExtensions);
-    std::vector<VkLayerProperties> instanceLayer;
-    cppvk::getEnumerateInstanceLayer(instanceLayer);
-
-    cppvk::Names extensions{};
-    cppvk::Names validationLayers{ "VK_LAYER_KHRONOS_validation" }; // VK_LAYER_LUNARG_standard_validation
-    cppvk::Names devExtension = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
-
-    for (const auto& e : instanceExtensions) {
-      if (strcmp(e.extensionName, "VK_KHR_surface_protected_capabilities") != 0)
-        extensions.push_back(e.extensionName);
-    }
-    if (useDebug)extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-
-    if (!cppvk::existSupport(validationLayers, instanceLayer)) {
-      throw std::runtime_error("Error Validation Layers " );
-    }
-
+    auto devExtension = std::make_shared<cppvk::Names>(cppvk::Names{ VK_KHR_SWAPCHAIN_EXTENSION_NAME });
 
     m_instance = cppvk::InstanceBuilder()
       .applicationName("Hello Vulkan")
       .engineName("Vulkan Engine")
       .apiVersion(VK_API_VERSION_1_1)
       .engineVersion(VK_MAKE_VERSION(1, 0, 0))
-      .enabledExtensionNames(extensions)
-      .enabledLayerNames(validationLayers)
-      .create(m_instance_callbacks);
+      .enabledExtensionNames([&](std::vector<std::string>& extensionNames){
+
+        std::vector<VkExtensionProperties> extesion;
+        cppvk::getEnumerateInstanceExtension(extesion);
+
+        const auto count = std::count_if(std::begin(extesion), std::end(extesion), [](auto e){ return strcmp(e.extensionName, "VK_KHR_surface_protected_capabilities") != 0;});
+        extensionNames.reserve(count);
+
+        for (const auto& e : extesion) {
+          if (strcmp(e.extensionName, "VK_KHR_surface_protected_capabilities") != 0)
+            extensionNames.push_back(e.extensionName);
+        }
+
+        if (useDebug)extensionNames.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+      })
+      .enabledLayerNames([](std::vector<const char*>& layerNames){
+
+        layerNames.reserve(1);
+        layerNames.push_back("VK_LAYER_KHRONOS_validation");
+
+        std::vector<VkLayerProperties> layer;
+        cppvk::getEnumerateInstanceLayer(layer);
+        if(!cppvk::existSupport(layerNames, layer)) {
+          std::cout << "ERROR: VkLayerProperties not supported." << std::endl;
+        }
+      })
+      .create();
 
 #if _DEBUG
-    m_debugUtilsMessanger_callbacks = cppvk::createPAllocator<const char*>("debugUtils");
     m_debugUtilsMessenger = cppvk::DebugUtilsMessengerBuilder(m_instance)
       .severity(MessageServerity(VERBOSE) | MessageServerity(WARNING) | MessageServerity(ERROR))
       .type(MessageType(GENERAL) | MessageType(VALIDATION) | MessageType(PERFORMANCE))
       .callback(debugCallback)
-      .create(m_debugUtilsMessanger_callbacks);
+      .create();
 #endif
 
     m_surface = cppvk::SurfaceBuilder(m_instance)
       .hwnd(hwnd)
-      .create(m_surface_callbacks);
-
-    std::vector<VkPhysicalDevice> physicalDeviceList;
-    cppvk::getEnumeratePhysicalDevices(m_instance.get(), physicalDeviceList);
+      .create();
 
     std::unique_ptr<cppvk::PhysicalDeviceDetails<std::vector>> pPhysicalDetails;
     std::unique_ptr<cppvk::PhysicalDeviceSurfaceDetails<std::vector>> pPhysicalSurfaceDetails;
+    std::vector<VkPhysicalDevice> physicalDeviceList;
+    cppvk::getEnumeratePhysicalDevices(m_instance.get(), physicalDeviceList);
     auto pPhysicalDevice = std::find_if(std::begin(physicalDeviceList), std::end(physicalDeviceList), [&](VkPhysicalDevice& physicalDevice) {
       pPhysicalDetails = std::make_unique< cppvk::PhysicalDeviceDetails<std::vector> >(physicalDevice);
       pPhysicalSurfaceDetails = std::make_unique< cppvk::PhysicalDeviceSurfaceDetails<std::vector> >(physicalDevice, m_surface.get());
       return true;
     });
-
     if (pPhysicalDevice == std::end(physicalDeviceList)) {
       throw std::runtime_error("Physical device not found");
     }
-
 
     auto graphics_queue_index = UINT32_MAX;
     auto present_queue_index = UINT32_MAX;
@@ -215,36 +174,41 @@ public:
         throw std::runtime_error("Queue Family Index could not be found.");
     }
 
-    std::vector<float> default_queue_priority{ 1.0f };
-
-    // set device extensions
-    devExtension.clear();
-    for (auto&& ext : pPhysicalDetails->extensions) {
-      devExtension.push_back(ext.extensionName);
-    }
-
-    cppvk::DeviceQueueCreateInfoList<std::vector> pDeviceQueueInfos {
-      cppvk::DeviceQueueCreateInfoWrapper()
-      .queuePriorities(default_queue_priority)
-      .familyIndex(graphics_queue_index)
-    };
-
     m_logicalDevice = cppvk::LogicalDeviceBuilder(*pPhysicalDevice)
-      .extensions(devExtension)
-      .layerNames(validationLayers)
-      .features(pPhysicalDetails->features)
-      .queueCreateInfos(pDeviceQueueInfos)
-      .create(m_device_callbacks);
+      .extensions([&pPhysicalDetails](std::vector<std::string>& names){
+        const size_t count = std::count_if(std::begin(pPhysicalDetails->extensions), std::end(pPhysicalDetails->extensions), [](auto& e){
+          return strcmp(e.extensionName, "VK_EXT_buffer_device_address") != 0;
+        });
+        names.reserve(count);
+        for (auto&& ext : pPhysicalDetails->extensions) {
+          if(strcmp(ext.extensionName, "VK_EXT_buffer_device_address") != 0)
+            names.push_back(ext.extensionName);
+        }
+      })
+      .layerNames([](std::vector<std::string>& names){
+        names.reserve(1);
+        names.push_back("VK_LAYER_KHRONOS_validation");
+      })
+      .features([&pPhysicalDetails](auto& feature) {
+        feature = pPhysicalDetails->features;
+      })
+      .queueCreateInfoInit(1)
+      .queueCreateInfoUpdate([=](cppvk::DeviceQueueCreateInfo&& info, std::vector<float>& priority){
+        priority = {1.0f};
+        info.familyIndex(graphics_queue_index);
+      })
+      .create();
 
     m_cmdPool = cppvk::CommandPoolBuilder(m_logicalDevice)
       .flags(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT)
       .queueFamilyIndices(graphics_queue_index)
-      .create(m_commandpool_callbacks);
+      .create();
 
-    m_cmdBuffer = cppvk::CommandBufferAllocate<CMD_BUFFER_SIZE>(m_logicalDevice)
+    m_cmdBuffer = cppvk::CommandBufferBuilder(m_logicalDevice)
+      .commandBufferCount(CMD_BUFFER_SIZE)
       .commandPool(m_cmdPool)
       .level(VK_COMMAND_BUFFER_LEVEL_PRIMARY)
-      .allocate();
+      .create();
 
     auto suitableFormat = std::find_if(std::begin(pPhysicalSurfaceDetails->formatList), std::end(pPhysicalSurfaceDetails->formatList), [](VkSurfaceFormatKHR format) {
       return format.format == VkFormat::VK_FORMAT_B8G8R8A8_UNORM;
@@ -258,17 +222,6 @@ public:
       });
     if (suitablePresent == std::end(pPhysicalSurfaceDetails->presentModeList)) {
       throw std::runtime_error( "No suitable present mode found.");
-    }
-
-    cppvk::Indexs queueFamilyIndices = { graphics_queue_index, present_queue_index};
-    {
-      const auto queueFamilyIndicesSet = std::set<uint32_t>(std::begin(queueFamilyIndices), std::end(queueFamilyIndices));
-      for (auto&& indice : queueFamilyIndicesSet) {
-        if (!cppvk::isSurfaeSupport(*pPhysicalDevice, m_surface.get(), indice))
-          throw std::runtime_error("Unsupported index information.");
-      }
-      if(queueFamilyIndicesSet.size() != queueFamilyIndices.size())
-        queueFamilyIndices = cppvk::Indexs(std::begin(queueFamilyIndicesSet), std::end(queueFamilyIndicesSet));
     }
 
     VkSurfaceTransformFlagBitsKHR preTransform = pPhysicalSurfaceDetails->capabilities.currentTransform;
@@ -296,8 +249,20 @@ public:
       .imageColorSpace(suitableFormat->colorSpace)
       .imageUsage(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
       .imageArrayLayers(1)
-      .queueFamilyIndices(queueFamilyIndices)
-      .create(m_swapchain_callbacks);
+      .queueFamilyIndices([&](auto& indices){
+        indices = { graphics_queue_index, present_queue_index};
+
+        const auto queueFamilyIndicesSet = std::set<uint32_t>(std::begin(indices), std::end(indices));
+        for (auto&& indice : queueFamilyIndicesSet) {
+          if (!cppvk::isSurfaeSupport(*pPhysicalDevice, m_surface.get(), indice))
+            throw std::runtime_error("Unsupported index information.");
+        }
+
+        if(queueFamilyIndicesSet.size() != indices.size())
+          indices = cppvk::Indexs(std::begin(queueFamilyIndicesSet), std::end(queueFamilyIndicesSet));
+
+      })
+      .create();
 
     cppvk::getSwapchainImagesKHR(m_logicalDevice.get(), m_swapchain.get(), m_swapchain_images);
 
@@ -308,11 +273,17 @@ public:
         .viewType(VK_IMAGE_VIEW_TYPE_2D)
         .image(swapchainImage)
         .format(suitableFormat->format)
-        .components({
-          VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G,
-          VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A,
+        .components([](auto& info){
+          info = {
+            VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G,
+            VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A,
+          };
         })
-        .subresourceRange({VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1})
+        .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
+        .baseMipLevel(0)
+        .levelCount(1)
+        .baseArrayLayer(0)
+        .layerCount(1)
         .create()
       );
     }
@@ -337,124 +308,118 @@ public:
       .samples(VK_SAMPLE_COUNT_1_BIT)
       .initialLayout(VK_IMAGE_LAYOUT_UNDEFINED)
       .arrayLayers(1)
-      .create(m_depthImage_callbacks);
+      .create();
 
     VkMemoryRequirements depthImageRequirements = {};
     vkGetImageMemoryRequirements(m_logicalDevice.get(), m_depthImage.get(), &depthImageRequirements);
 
     const auto depthImageTypeIndex = pPhysicalDetails->findMemoryType(depthImageRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-    m_depthMemory = cppvk::DeviceMemoryAllocate(m_logicalDevice)
+    m_depthMemory = cppvk::DeviceMemoryBuilder(m_logicalDevice)
       .typeIndex(depthImageTypeIndex)
       .size(depthImageRequirements.size)
-      .allocate(m_depthMemory_callbacks);
+      .create();
 
-    cppvk::checkVk(vkBindImageMemory(m_logicalDevice.get(), m_depthImage.get(), m_depthMemory.get(), 0));
+    cppvk::bindImageMemory(m_logicalDevice, m_depthImage, m_depthMemory, 0);
 
     m_depthImageView = cppvk::ImageViewBuilder(m_logicalDevice)
       .viewType(VK_IMAGE_VIEW_TYPE_2D)
       .image(m_depthImage)
       .format(depthFormat)
-      .components({
-        VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G,
-        VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A,
+      .components([](auto& info){
+        info = {
+          VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G,
+          VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A,
+        };
       })
-      .subresourceRange({
-        VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1
+      .subresourceRange([](auto& info){
+        info = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
       })
-      .create(m_depthImageView_callbacks);
+      .create();
 
     m_uniformBuffer = cppvk::BufferBuilder(m_logicalDevice)
       .usage(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT)
       .sharingMode(VK_SHARING_MODE_EXCLUSIVE)
       .size(sizeof(glm::mat4))
-      .create(m_uniformBuffer_callbacks);
+      .create();
 
     VkMemoryRequirements uniformBufferRequirements = {};
     vkGetBufferMemoryRequirements(m_logicalDevice.get(), m_uniformBuffer.get(), &uniformBufferRequirements);
 
-    const auto uniformBufferTypeIndex = pPhysicalDetails->findMemoryType(uniformBufferRequirements.memoryTypeBits,
-    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
-    m_uniformMemory = cppvk::DeviceMemoryAllocate(m_logicalDevice)
-      .typeIndex(uniformBufferTypeIndex)
+    m_uniformMemory = cppvk::DeviceMemoryBuilder(m_logicalDevice)
+      .typeIndex(pPhysicalDetails->findMemoryType(
+        uniformBufferRequirements.memoryTypeBits,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+      ))
       .size(uniformBufferRequirements.size)
-      .allocate(m_uniformMemory_callbacks);
-
-    projection = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 100.0f);
-    view = glm::lookAt(
-        glm::vec3(-5, 3, -10),  // Camera is at (-5,3,-10), in World Space
-        glm::vec3(0, 0, 0),     // and looks at the origin
-        glm::vec3(0, -1, 0)     // Head is up (set to 0,-1,0 to look upside-down)
-      );
-    model = glm::mat4(1.0f);
-    clip = glm::mat4(1.0f, 0.0f, 0.0f, 0.0f,
-                    0.0f,-1.0f, 0.0f, 0.0f,
-                    0.0f, 0.0f, 0.5f, 0.0f,
-                    0.0f, 0.0f, 0.5f, 1.0f);
+      .create();
 
     {
+      projection = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 100.0f);
+      view = glm::lookAt(
+          glm::vec3(-5, 3, -10),  // Camera is at (-5,3,-10), in World Space
+          glm::vec3(0, 0, 0),     // and looks at the origin
+          glm::vec3(0, -1, 0)     // Head is up (set to 0,-1,0 to look upside-down)
+        );
+      model = glm::mat4(1.0f);
+      clip = glm::mat4(
+                    1.0f, 0.0f, 0.0f, 0.0f,
+                    0.0f,-1.0f, 0.0f, 0.0f,
+                    0.0f, 0.0f, 0.5f, 0.0f,
+                    0.0f, 0.0f, 0.5f, 1.0f
+        );
       glm::mat4 mvp = clip * projection * view * model;
       auto mapData = cppvk::mapMemory<uint8_t>(m_logicalDevice, 0, uniformBufferRequirements.size, m_uniformMemory, 0);
-
       std::memcpy(mapData->data(), &mvp, mapData->size());
-
       cppvk::bindMemory(m_logicalDevice, m_uniformBuffer, m_uniformMemory);
     }
-
-    cppvk::DescriptorSetLayoutBindingList<std::vector> layoutBindings = {
-      cppvk::DescriptorSetLayoutInfoWrapper()
-      .binding(0)
-      .type(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
-      .count(1)
-      .stageFlags(VK_SHADER_STAGE_VERTEX_BIT)
-    };
 
     auto descriptorSetLayoutPool = cppvk::DescriptorSetLayoutPool::createPool(1);
 
     m_uniformDescriptorSetLayout = cppvk::DescriptorSetLayoutBuilder(m_logicalDevice)
-      .flags(0)
+      .bindingCount(1)
+      .bindings([](VkDescriptorSetLayoutBinding& layout) {
+        layout.binding = 0;
+        layout.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        layout.descriptorCount = 1;
+        layout.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+        layout.pImmutableSamplers = nullptr;
+      })
       .pool(descriptorSetLayoutPool)
-      .bindings(layoutBindings)
-      .create(m_descriptorsetlayout_callbacks);
+      .create();
 
     m_pipelinelayout = cppvk::PipelineLayoutBuilder(m_logicalDevice)
       .flags(0)
       .layoutpool(descriptorSetLayoutPool)
-      .pushConstantRange()
-      .create(m_pipeline_callbacks);
-
-    auto poolsizeList = cppvk::DescriptorPoolSizeList<std::vector>{
-      cppvk::DescriptorPoolSizeInfoWrapper::uniformBuffer(1)
-    };
+      .create();
 
     m_descriptorpool = cppvk::DescriptorPoolBuilder(m_logicalDevice)
-      .flags(0)
       .maxSets(1)
-      .poolsize(poolsizeList)
-      .create(m_descriptorpool_callbacks);
+      .poolSizeCount(1)
+      .poolSizeUniformBuffer([](auto& size){ size = 1;})
+      .create();
 
-    m_descriptorset = cppvk::DescriptorSetAllocate<DESCRIPTOR_POOL_SIZE>(m_logicalDevice)
+    m_descriptorset = cppvk::DescriptorSetBuilder(m_logicalDevice)
       .descriptorPool(m_descriptorpool)
       .layoutpool(descriptorSetLayoutPool)
-      .allocate();
+      .create();
 
-    auto writeList = cppvk::DescriptorWriteInfoList<std::vector>{
-      cppvk::DescriptorWriteInfoWrapper()
-        .dstBinding(0)
-        .dstArrayElement(0)
-        .descriptorType(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
-        .pBuffer(cppvk::DescriptorBufferInfoList<std::vector>{
-          cppvk::DescriptorBufferInfoWrapper()
-            .buffer(m_uniformBuffer)
-            .range(sizeof(glm::mat4))
-        })
-    };
-
-    cppvk::DescriptorUpdateHelper<DESCRIPTOR_POOL_SIZE>(m_logicalDevice)
-      .write(writeList)
-      .dstSet(m_descriptorset)
-      .update();
+    cppvk::DescriptorSetUpdater descriptorUpdater(m_logicalDevice);
+    descriptorUpdater.dstDescriptor(m_descriptorset);
+    descriptorUpdater.writeSize(1);
+    descriptorUpdater.writeBufferData([this](cppvk::WriteBufferInfo& info) {
+      info
+      .type(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+      .count(1)
+      .binding(0)
+      .arrayElement(0)
+      .bufferInfo([this](VkDescriptorBufferInfo& bufInfo){
+        bufInfo.buffer = this->m_uniformBuffer.get();
+        bufInfo.offset = 0;
+        bufInfo.range = sizeof(glm::mat4);
+      });
+    });
+    descriptorUpdater.update();
 
   }
 };

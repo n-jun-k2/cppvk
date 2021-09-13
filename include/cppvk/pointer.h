@@ -1,7 +1,7 @@
 #pragma once
 
 #include "vk.h"
-
+#include "type.h"
 #include <array>
 #include <memory>
 
@@ -31,10 +31,8 @@ namespace cppvk {
   using CommandPoolPtr = pointer<VkCommandPool>;
   using CommandPoolRef = reference<VkCommandPool>;
 
-  template<size_t Length>
-  using CommandBufferPtr = pointer<std::array<VkCommandBuffer, Length>>;
-  template<size_t Length>
-  using CommandBufferRef = reference<std::array<VkCommandBuffer, Length>>;
+  using CommandBufferPtr = pointer<std::vector<VkCommandBuffer>>;
+  using CommandBufferRef = reference<std::vector<VkCommandBuffer>>;
 
   using SwapchainPtr = pointer<VkSwapchainKHR>;
   using SwapchainRef = reference<VkSwapchainKHR>;
@@ -63,9 +61,21 @@ namespace cppvk {
   using DescriptorPoolPtr = pointer<VkDescriptorPool>;
   using DescriptorPoolRef = reference<VkDescriptorPool>;
 
-  template<size_t Length>
-  using DescriptorSetPtr = pointer<std::array<VkDescriptorSet, Length>>;
-  template<size_t Length>
-  using DescriptorSetRef = reference<std::array<VkDescriptorSet, Length>>;
+  using SemaphorePtr = pointer<VkSemaphore>;
+  using SemaphoreRef = reference<VkSemaphore>;
+
+  using RenderPassPtr = pointer<VkRenderPass>;
+  using RenderPassRef = reference<VkRenderPass>;
+
+  using DescriptorSetPtr = pointer<std::vector<VkDescriptorSet>>;
+  using DescriptorSetRef = reference<std::vector<VkDescriptorSet>>;
+
+  using DescriptorSetLayoutPool = Pool<VkDescriptorSetLayout, std::vector>;
+  using DescriptorSetLayoutPoolPtr = pointer<DescriptorSetLayoutPool>;
+  using DescriptorSetLayoutPoolRef = reference<DescriptorSetLayoutPool>;
+
+  using BufferViewPool = Pool<VkBufferView, std::vector>;
+  using BufferViewPoolPtr = pointer<BufferViewPool>;
+  using BufferViewPoolRef = reference<BufferViewPool>;
 
 }

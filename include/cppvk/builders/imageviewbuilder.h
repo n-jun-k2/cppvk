@@ -10,14 +10,15 @@ namespace cppvk {
   class ImageViewBuilder : Noncopyable, Nondynamicallocation {
     private:
       VkImageViewCreateInfo m_info;
-      cppvk::DeviceRef m_refDevice;
-      cppvk::ImageRef m_refImage;
+      DeviceRef m_refDevice;
+      ImageRef m_refImage;
     public:
       explicit ImageViewBuilder(DeviceRef pLogicalDevice)
       : m_refDevice(pLogicalDevice) {
         m_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
         m_info.pNext = VK_NULL_HANDLE;
         m_info.flags = 0;
+        m_info.subresourceRange = {};
       }
       ~ImageViewBuilder() = default;
 
@@ -46,8 +47,8 @@ namespace cppvk {
         return *this;
       }
 
-      ImageViewBuilder& components(const VkComponentMapping& mapping) {
-        m_info.components = mapping;
+      ImageViewBuilder& components(std::function<void(VkComponentMapping&)> create) {
+        create(m_info.components);
         return *this;
       }
 
@@ -56,8 +57,28 @@ namespace cppvk {
         return *this;
       }
 
-      ImageViewBuilder& subresourceRange(const VkImageSubresourceRange& range) {
-        m_info.subresourceRange = range;
+      ImageViewBuilder& aspectMask(const VkImageAspectFlags mask) {
+        m_info.subresourceRange.aspectMask = mask;
+        return *this;
+      }
+
+      ImageViewBuilder& baseMipLevel(const uint32_t level) {
+        m_info.subresourceRange.baseMipLevel = level;
+        return *this;
+      }
+
+      ImageViewBuilder& levelCount(const uint32_t count) {
+        m_info.subresourceRange.levelCount = count;
+        return *this;
+      }
+
+      ImageViewBuilder& baseArrayLayer(const uint32_t layer) {
+        m_info.subresourceRange.baseArrayLayer = layer;
+        return *this;
+      }
+
+      ImageViewBuilder& layerCount(const uint32_t count) {
+        m_info.subresourceRange.layerCount = count;
         return *this;
       }
 
@@ -68,6 +89,11 @@ namespace cppvk {
 
       ImageViewBuilder& image(VkImage image) {
         m_info.image = image;
+        return *this;
+      }
+
+      ImageViewBuilder& subresourceRange(std::function<void(VkImageSubresourceRange&)> create) {
+        create(m_info.subresourceRange);
         return *this;
       }
   };

@@ -3,13 +3,15 @@
 #include "../vk.h"
 #include "../type.h"
 #include "../pointer.h"
+#include "../common.h"
 #include "../deleter/deleter.h"
 
 namespace cppvk {
   class ImageBuilder :Noncopyable, Nondynamicallocation{
     private:
       VkImageCreateInfo m_info;
-      cppvk::DeviceRef m_refLogicalDevice;
+      DeviceRef m_refLogicalDevice;
+      std::vector<uint32_t> m_pQueueFamilyIndices;
 
     public:
       explicit ImageBuilder(DeviceRef pLogicalDevice)
@@ -25,6 +27,7 @@ namespace cppvk {
       }
 
       cppvk::ImagePtr create(AllocationCallbacksPtr callbacks = nullptr) {
+        containerToCPtr(m_info.queueFamilyIndexCount, &m_info.pQueueFamilyIndices, m_pQueueFamilyIndices);
         if(auto pLogicalDevice = m_refLogicalDevice.lock()){
           VkImage image;
           checkVk(vkCreateImage(pLogicalDevice.get(), &m_info, callbacks ? callbacks.get() : VK_NULL_HANDLE, &image));
@@ -88,13 +91,10 @@ namespace cppvk {
         return *this;
       }
 
-      ImageBuilder& queueFamilyIndices(cppvk::Indexs& indices) {
-        m_info.queueFamilyIndexCount = static_cast<uint32_t>(indices.size());
-        m_info.pQueueFamilyIndices = nullptr;
-        if (!indices.empty())
-          m_info.pQueueFamilyIndices = indices.data();
-        return *this;
-      }
+      ImageBuilder& queueFamilyIndices(std::function<void(std::vector<uint32_t>&)> create) {
+      create(m_pQueueFamilyIndices);
+      return *this;
+    }
 
       ImageBuilder& initialLayout(VkImageLayout layout) {
         m_info.initialLayout = layout;

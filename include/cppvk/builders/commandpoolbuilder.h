@@ -3,6 +3,7 @@
 #include "../vk.h"
 #include "../type.h"
 #include "../pointer.h"
+#include "../deleter/deleter.h"
 
 
 namespace cppvk {
@@ -11,11 +12,11 @@ namespace cppvk {
   Noncopyable, Nondynamicallocation {
   private:
     VkCommandPoolCreateInfo m_info;
-    cppvk::DeviceRef m_refDevice;
+    DeviceRef m_refDevice;
 
   public:
 
-    explicit CommandPoolBuilder(cppvk::DeviceRef refDevice) : m_refDevice(refDevice) {
+    explicit CommandPoolBuilder(DeviceRef refDevice) : m_refDevice(refDevice) {
       m_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
       m_info.pNext = VK_NULL_HANDLE;
       m_info.flags = 0;
@@ -48,7 +49,7 @@ namespace cppvk {
     /// </summary>
     /// <param name="value"></param>
     /// <returns></returns>
-    CommandPoolBuilder& queueFamilyIndices(const uint32_t& value){
+    CommandPoolBuilder& queueFamilyIndices(const uint32_t value){
       m_info.queueFamilyIndex = value;
       return *this;
     }

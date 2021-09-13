@@ -3,10 +3,11 @@
 #include "../vk.h"
 #include "../type.h"
 #include "../pointer.h"
+#include "../common.h"
 #include "../deleter/deleter.h"
-#include "../info/devicequeueinfo.h"
-#include <iostream>
-#include <stdexcept>
+#include "../infos/devicequeueinfo.h"
+
+#include <functional>
 
 namespace cppvk {
 
@@ -21,9 +22,15 @@ namespace cppvk {
     VkDeviceCreateInfo m_info;
     VkPhysicalDevice m_physicalDevice;
 
-    cppvk::Names layernames;
-    cppvk::Names extensionnames;
-    VkPhysicalDeviceFeatures tempFeatures;
+    std::vector<std::string> m_EnabledLayerNames;
+    std::vector<std::string> m_EnabledExtensionNames;
+
+    std::vector<const char*> m_rawEnabledLayerNames;
+    std::vector<const char*> m_rawEnabledExtensionNames;
+
+    std::vector<VkDeviceQueueCreateInfo> m_pQueueCreateInfo;
+    std::vector<std::vector<float>> m_pQueueCreateInfoPriorites;
+    VkPhysicalDeviceFeatures m_Features;
 
   public:
 
@@ -34,8 +41,7 @@ namespace cppvk {
     /// </summary>
     /// <param name="physicaldevice"></param>
     explicit LogicalDeviceBuilder(const VkPhysicalDevice physicaldevice) :
-      m_physicalDevice(physicaldevice),
-      tempFeatures({}) {
+      m_physicalDevice(physicaldevice){
       m_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
       m_info.pNext = NULL;
       m_info.flags = 0;
@@ -50,30 +56,65 @@ namespace cppvk {
     /// <param name="callbacks"></param>
     /// <returns></returns>
     cppvk::DevicePtr create(AllocationCallbacksPtr callbacks = nullptr) {
+
+      m_info.pEnabledFeatures = &m_Features;
+      containerToCPtr(m_info.enabledExtensionCount, &m_info.ppEnabledExtensionNames, m_rawEnabledExtensionNames);
+      containerToCPtr(m_info.enabledLayerCount, &m_info.ppEnabledLayerNames, m_rawEnabledLayerNames);
+
+      int idx = 0;
+      for (auto& info : m_pQueueCreateInfo) {
+        containerToCPtr(info.queueCount, &info.pQueuePriorities, m_pQueueCreateInfoPriorites[idx]);
+        ++idx;
+      }
+
+      containerToCPtr(m_info.queueCreateInfoCount, &m_info.pQueueCreateInfos, m_pQueueCreateInfo);
+
+
       VkDevice vkDevice;
-      vkCreateDevice(m_physicalDevice, &m_info, callbacks ? callbacks.get() : VK_NULL_HANDLE, &vkDevice);
+      checkVk(vkCreateDevice(m_physicalDevice, &m_info, callbacks ? callbacks.get() : VK_NULL_HANDLE, &vkDevice));
       return DevicePtr(vkDevice, LogicalDeviceDeleter(callbacks));
     }
 
 		/// <summary>
-		///
+		/// Create a LayerName managed by string
 		/// </summary>
-		/// <param name="layers"></param>
+		/// <param name="create"></param>
 		/// <returns></returns>
-		LogicalDeviceBuilder& layerNames(const Names& arg) {
-			m_info.enabledLayerCount = static_cast<uint32_t>(arg.size());
-			if(!arg.empty())m_info.ppEnabledLayerNames = arg.data();
+		LogicalDeviceBuilder& layerNames(std::function<void(std::vector<std::string>&)> create) {
+      create(m_EnabledLayerNames);
+      stringListToCPtrList(m_EnabledLayerNames, m_rawEnabledLayerNames);
 			return *this;
 		}
 
-    /// <summary>
-    ///
-    /// </summary>
-    /// <param name="arg"></param>
-    /// <returns></returns>
-    LogicalDeviceBuilder& layerNames(Names&& arg) {
-      layernames = std::move(arg);
-      return layerNames(layernames);
+		/// <summary>
+		/// Create a LayerName managed by string
+		/// </summary>
+		/// <param name="create"></param>
+		/// <returns></returns>
+		LogicalDeviceBuilder& layerNames(std::function<void(std::vector<const char*>&)> create) {
+      create(m_rawEnabledLayerNames);
+			return *this;
+		}
+
+		/// <summary>
+		/// Create Extension name managed by string
+		/// </summary>
+		/// <param name="create"></param>
+		/// <returns></returns>
+    LogicalDeviceBuilder& extensions(std::function<void(std::vector<std::string>&)> create) {
+      create(m_EnabledExtensionNames);
+      stringListToCPtrList(m_EnabledExtensionNames, m_rawEnabledExtensionNames);
+      return *this;
+    }
+
+		/// <summary>
+		/// Create Extension name managed by string
+		/// </summary>
+		/// <param name="create"></param>
+		/// <returns></returns>
+    LogicalDeviceBuilder& extensions(std::function<void(std::vector<const char*>&)> create) {
+      create(m_rawEnabledExtensionNames);
+      return *this;
     }
 
 		/// <summary>
@@ -81,20 +122,20 @@ namespace cppvk {
 		/// </summary>
 		/// <param name="arg"></param>
 		/// <returns></returns>
-		LogicalDeviceBuilder& extensions(const Names& arg) {
-			m_info.enabledExtensionCount = static_cast<uint32_t>(arg.size());
-			if(!arg.empty())m_info.ppEnabledExtensionNames = arg.data();
-			return *this;
-		}
+    LogicalDeviceBuilder& features(std::function<void(VkPhysicalDeviceFeatures&)> update) {
+      update(m_Features);
+      return *this;
+    }
 
-    /// <summary>
-    ///
-    /// </summary>
-    /// <param name="arg"></param>
-    /// <returns></returns>
-    LogicalDeviceBuilder& extensions(Names&& arg) {
-      extensionnames = std::move(arg);
-      return extensions(extensionnames);
+		/// <summary>
+		///
+		/// </summary>
+		/// <param name="size"></param>
+		/// <returns></returns>
+    LogicalDeviceBuilder& queueCreateInfoInit(const int size) {
+      m_pQueueCreateInfo.resize(size);
+      m_pQueueCreateInfoPriorites.resize(size);
+      return *this;
     }
 
 		/// <summary>
@@ -102,27 +143,10 @@ namespace cppvk {
 		/// </summary>
 		/// <param name="arg"></param>
 		/// <returns></returns>
-		LogicalDeviceBuilder& features(const VkPhysicalDeviceFeatures& arg) {
-			m_info.pEnabledFeatures = &arg;
-			return *this;
-		}
-
-    /// <summary>
-    ///
-    /// </summary>
-    /// <param name="arg"></param>
-    /// <returns></returns>
-    LogicalDeviceBuilder& features(VkPhysicalDeviceFeatures&& arg) {
-      tempFeatures = std::move(arg);
-      return features(tempFeatures);
-    }
-
-    template < template<typename E, typename Allocator = std::allocator<E>>class Container>
-    LogicalDeviceBuilder& queueCreateInfos(const DeviceQueueCreateInfoList<Container>& arg) {
-      m_info.queueCreateInfoCount = static_cast<uint32_t>(arg.raw.size());
-      m_info.pQueueCreateInfos = nullptr;
-      if (!arg.raw.empty())
-        m_info.pQueueCreateInfos = arg.raw.data();
+    LogicalDeviceBuilder& queueCreateInfoUpdate(std::function<void(DeviceQueueCreateInfo&&, std::vector<float>&)> create, const uint32_t offset = 0, const int count = 0) {
+      int i = offset;
+      const size_t size = count <= 0 ? m_pQueueCreateInfo.size() : count;
+      for (; i < size; ++i) create(DeviceQueueCreateInfo(m_pQueueCreateInfo[i]), m_pQueueCreateInfoPriorites[i]);
       return *this;
     }
 

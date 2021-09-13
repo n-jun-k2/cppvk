@@ -46,4 +46,15 @@ namespace cppvk {
     cppvk::checkVk(vkBindBufferMemory(pDevice.get(), pBuffer.get(), pMemory.get(), offset));
   }
 
+  /// <summary>
+  ///
+  /// </summary>
+  /// <param name="pDevice"></param>
+  /// <param name="pImage"></param>
+  /// <param name="pMemory"></param>
+  /// <param name="memoryOffset"></param>
+  static void bindImageMemory(cppvk::DevicePtr pDevice, cppvk::ImagePtr pImage, cppvk::DeviceMemoryPtr pMemory, const VkDeviceSize memoryOffset) {
+    cppvk::checkVk(vkBindImageMemory(pDevice.get(), pImage.get(), pMemory.get(), memoryOffset));
+  }
+
 }

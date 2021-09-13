@@ -3,6 +3,7 @@
 #include "../vk.h"
 #include "../type.h"
 #include "../pointer.h"
+#include "../common.h"
 #include "../deleter/deleter.h"
 
 
@@ -16,10 +17,10 @@ namespace cppvk {
   private:
 
       VkSwapchainCreateInfoKHR m_info;
-      cppvk::DeviceRef m_refDevice;
-      cppvk::SurfaceRef m_refSurface;
-      cppvk::SwapchainRef m_refSwapchain;
-      cppvk::Indexs tempQueueFamilyIndices;
+      DeviceRef m_refDevice;
+      SurfaceRef m_refSurface;
+      SwapchainRef m_refSwapchain;
+      std::vector<uint32_t> m_pQueueFamilyIndices;
 
   public:
     SwapchainBuilder() = delete;
@@ -36,6 +37,12 @@ namespace cppvk {
     }
 
     cppvk::SwapchainPtr create(AllocationCallbacksPtr callbacks = nullptr) {
+      containerToCPtr(m_info.queueFamilyIndexCount, &m_info.pQueueFamilyIndices, m_pQueueFamilyIndices);
+
+      m_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+      if (m_info.queueFamilyIndexCount > 1)
+        m_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+
       auto pDevice = m_refDevice.lock();
       auto pSurface = m_refSurface.lock();
       if (pDevice && pSurface) {
@@ -94,15 +101,8 @@ namespace cppvk {
       return *this;
     }
 
-    template<template<typename T, class Allocate = std::allocator<T>>class Container>
-    SwapchainBuilder& queueFamilyIndices(const Container<uint32_t>& pQueueFamilyIndices) {
-      m_info.queueFamilyIndexCount = static_cast<uint32_t>(pQueueFamilyIndices.size());
-      m_info.pQueueFamilyIndices = nullptr;
-      if (m_info.queueFamilyIndexCount > 0)
-        m_info.pQueueFamilyIndices = pQueueFamilyIndices.data();
-      m_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-      if (m_info.queueFamilyIndexCount > 1)
-        m_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+    SwapchainBuilder& queueFamilyIndices(std::function<void(std::vector<uint32_t>&)> create) {
+      create(m_pQueueFamilyIndices);
       return *this;
     }
 

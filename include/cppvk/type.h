@@ -3,9 +3,16 @@
 #include <memory>
 #include <cassert>
 #include <vector>
-
+#include <functional>
 namespace cppvk
 {
+  template<class T>
+  class InfoWrap{
+    protected:
+      T& m_info;
+    public:
+      InfoWrap(T& v) : m_info(v) {}
+  };
 
   class Nondynamicallocation
   {

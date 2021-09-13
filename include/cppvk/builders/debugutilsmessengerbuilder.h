@@ -24,7 +24,7 @@ namespace cppvk {
     ///
     /// </summary>
     /// <param name="refInstance"></param>
-    explicit DebugUtilsMessengerBuilder(cppvk::InstanceRef refInstance) : m_refInstance(refInstance) {
+    explicit DebugUtilsMessengerBuilder(InstanceRef refInstance) : m_refInstance(refInstance) {
       m_info = {};
       m_info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
       m_info.pNext = NULL;

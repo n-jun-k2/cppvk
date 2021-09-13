@@ -7,8 +7,7 @@
 
 namespace cppvk {
 
-  template<size_t Length>
-  class CommandBufferAllocate :
+  class CommandBufferBuilder :
   Noncopyable, Nondynamicallocation{
   private:
     VkCommandBufferAllocateInfo m_info;
@@ -16,31 +15,36 @@ namespace cppvk {
     CommandPoolRef m_refCommandPool;
   public:
 
-    explicit CommandBufferAllocate(DeviceRef refDevice) : m_refDevice(refDevice){
+    explicit CommandBufferBuilder(DeviceRef refDevice) : m_refDevice(refDevice){
       m_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
       m_info.pNext = VK_NULL_HANDLE;
-      m_info.commandBufferCount = Length;
+      m_info.commandBufferCount = 0;
     }
-    ~CommandBufferAllocate() = default;
+    ~CommandBufferBuilder() = default;
 
-    CommandBufferAllocate& level(const VkCommandBufferLevel& level) {
+    CommandBufferBuilder& level(const VkCommandBufferLevel& level) {
       m_info.level = level;
       return *this;
     }
 
-    CommandBufferAllocate& commandPool(CommandPoolRef refCommandPool) {
+    CommandBufferBuilder& commandPool(CommandPoolRef refCommandPool) {
       m_refCommandPool = refCommandPool;
       return *this;
     }
 
-    CommandBufferPtr<Length> allocate() {
+    CommandBufferBuilder& commandBufferCount (const uint32_t count) {
+      m_info.commandBufferCount = count;
+      return *this;
+    }
+
+    CommandBufferPtr create() {
       auto pCmdPool = this->m_refCommandPool.lock();
       auto pDevice = this->m_refDevice.lock();
       if (pDevice && pCmdPool ) {
         this->m_info.commandPool = pCmdPool.get();
-        auto buffer = new std::array<VkCommandBuffer, Length> { VK_NULL_HANDLE };
+        auto buffer = new std::vector<VkCommandBuffer>(m_info.commandBufferCount);
         cppvk::checkVk(vkAllocateCommandBuffers(pDevice.get(), &m_info, buffer->data()));
-        return CommandBufferPtr<Length>(buffer, cppvk::CommandBufferDeleter<Length>(std::make_shared<deivce_and_commandpool>(pDevice, pCmdPool), nullptr));
+        return CommandBufferPtr(buffer, cppvk::CommandBufferDeleter(std::make_shared<deivce_and_commandpool>(pDevice, pCmdPool), nullptr));
       }
       throw std::runtime_error("Failed to create CommandBuffers");
     }
